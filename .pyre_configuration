@@ -1,0 +1,13 @@
+{
+  "source_directories": [
+    {
+      "root": "."
+    }
+  ],
+  "search_path": [
+    "C:\\Program Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.11_3.11.2544.0_x64__qbz5n2kfra8p0\\Lib\\site-packages",
+    "C:\\Users\\Windows\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python311\\site-packages"
+  ],
+  "python_version": "3.11",
+  "strict_dependencies": false
+}

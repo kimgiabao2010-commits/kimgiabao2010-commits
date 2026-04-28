@@ -1,0 +1,13 @@
+pandas
+scikit-learn
+joblib
+requests
+flask
+flask-cors
+sentence-transformers
+fasttext-wheel
+matplotlib
+seaborn
+discord.py
+numpy
+tensorflow

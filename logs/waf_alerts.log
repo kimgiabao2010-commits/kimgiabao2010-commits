@@ -1,0 +1,5 @@
+[2026-04-25 15:30:39] [WAF_ALERT] Type: SQL_Injection | Payload: SELECT * FROM users
+[2026-04-25 16:05:36] [WAF_ALERT] Type: SQL_Injection | Payload: SELECT * FROM users WHERE id=1
+[2026-04-25 16:05:38] [WAF_ALERT] Type: XSS_Attack | Payload: onerror=alert(1)
+[2026-04-25 16:05:40] [WAF_ALERT] Type: Path_Traversal | Payload: ../../../etc/passwd
+[2026-04-25 16:05:42] [WAF_ALERT] Type: OS_Command_Injection | Payload: hello; cat /etc/passwd
