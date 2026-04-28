@@ -1,36 +1,30 @@
 """
-train_sbert_mlp.py
-==================
-Phiên bản L2 Regularizer + Class Weights (Mục tiêu > 80%)
+train_sbert_xgboost.py
+======================
+Đổi chiến thuật: SBERT (Feature) + XGBoost (Classifier) + GridSearchCV
+Mục tiêu vắt kiệt > 80% từ tập dữ liệu nhỏ và nhiễu.
 """
 
 import os
-import numpy as np
 import pandas as pd
+import numpy as np
 
-# ── Giới hạn TensorFlow chỉ dùng CPU, tắt log rác ──────────────────────────
+# Tắt log rác
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers, regularizers
-from tensorflow.keras.callbacks import EarlyStopping
-from tensorflow.keras.optimizers import Adam
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, accuracy_score
-from sklearn.utils import class_weight # Bổ sung thư viện cân bằng trọng số
 from sentence_transformers import SentenceTransformer
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.metrics import classification_report, accuracy_score
+import xgboost as xgb
+import joblib
 
 # ---------------------------------------------------------------------------
 # CONFIG
 # ---------------------------------------------------------------------------
 DATA_PATH   = "do an.csv"
-MODEL_OUT   = "sbert_scam_classifier.h5"
+MODEL_OUT   = "sbert_xgboost_classifier.pkl"
 SBERT_NAME  = "paraphrase-multilingual-MiniLM-L12-v2"
-EMBED_DIM   = 384
-EPOCHS      = 50     
-BATCH_SIZE  = 64     
 TEST_SIZE   = 0.2
 RANDOM_SEED = 42
 
@@ -38,7 +32,7 @@ def main():
     # ---------------------------------------------------------------------------
     # 1. ĐỌC DỮ LIỆU
     # ---------------------------------------------------------------------------
-    print("[1/5] Loading dataset...")
+    print("[1/4] Loading dataset...")
     df = pd.read_csv(DATA_PATH, encoding="utf-8")
 
     text_col = "content" if "content" in df.columns else "Message"
@@ -50,111 +44,82 @@ def main():
 
     texts  = df[text_col].tolist()
     labels = df[label_col].values
+    
+    # Tính toán tỷ lệ chênh lệch để XGBoost cân bằng
+    ratio = float(np.sum(labels == 0)) / np.sum(labels == 1)
 
-    print(f"    Tong so mau : {len(texts)}")
-    print(f"    Phan phoi   : {dict(pd.Series(labels).value_counts().sort_index())}")
+    print(f"    Tổng số mẫu : {len(texts)}")
 
     # ---------------------------------------------------------------------------
     # 2. TRÍCH XUẤT ĐẶC TRƯNG – SBERT EMBEDDINGS
     # ---------------------------------------------------------------------------
-    print(f"\n[2/5] Encoding sentences with SBERT '{SBERT_NAME}'...")
+    print(f"\n[2/4] Encoding sentences with SBERT '{SBERT_NAME}'...")
     sbert = SentenceTransformer(SBERT_NAME)
 
-    X = sbert.encode(
-        texts,
-        batch_size=64,
-        show_progress_bar=True,
-        convert_to_numpy=True,
-    )
-    print(f"    Embedding shape: {X.shape}")
-
+    X = sbert.encode(texts, batch_size=64, show_progress_bar=True, convert_to_numpy=True)
     y = labels
 
-    # ---------------------------------------------------------------------------
-    # 3. CHIA TẬP TRAIN / TEST VÀ TÍNH TRỌNG SỐ
-    # ---------------------------------------------------------------------------
-    print("\n[3/5] Splitting train/test and calculating Class Weights...")
+    print("\n[3/4] Splitting train/test...")
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y,
-        test_size=TEST_SIZE,
-        random_state=RANDOM_SEED,
-        stratify=y,
+        X, y, test_size=TEST_SIZE, random_state=RANDOM_SEED, stratify=y
     )
+
+    # ---------------------------------------------------------------------------
+    # 3. TỰ ĐỘNG DÒ TÌM THÔNG SỐ XGBOOST (GridSearchCV)
+    # ---------------------------------------------------------------------------
+    print("\n[4/4] Bắt đầu rèn luyện XGBoost và tìm siêu tham số...")
     
-    # [QUAN TRỌNG] Tự động tính trọng số để chống mất cân bằng dữ liệu
-    weights = class_weight.compute_class_weight('balanced', classes=np.unique(y_train), y=y_train)
-    cw_dict = dict(enumerate(weights))
-    print(f"    Class Weights áp dụng: {cw_dict}")
-
-    # ---------------------------------------------------------------------------
-    # 4. XÂY DỰNG MÔ HÌNH MLP (L2 regularization mạnh + Dropout cao)
-    # ---------------------------------------------------------------------------
-    print("\n[4/5] Building MLP model...")
-
-    L2 = 5e-4   # L2 lambda giữ nguyên
-    
-    model = keras.Sequential([
-        layers.Dense(128, activation="relu",
-                     input_shape=(EMBED_DIM,),
-                     kernel_regularizer=regularizers.l2(L2)),
-                     
-        # Kéo Dropout lên 0.5 để tăng độ lỳ đòn
-        layers.Dropout(0.5),
-
-        layers.Dense(1, activation="sigmoid"),
-    ], name="sbert_scam_mlp_v6")
-
-    # Học cực chậm (0.0003) để không bị bỏ sót nghiệm tốt
-    model.compile(
-        optimizer=Adam(learning_rate=0.0003), 
-        loss="binary_crossentropy",
-        metrics=["accuracy"],
+    # Khởi tạo mô hình cơ sở
+    xgb_model = xgb.XGBClassifier(
+        objective='binary:logistic',
+        eval_metric='logloss',
+        scale_pos_weight=ratio, # Ép XGBoost chú ý nhãn lừa đảo
+        random_state=RANDOM_SEED
     )
 
-    model.summary()
+    # Lưới tham số để nó tự thử nghiệm
+    param_grid = {
+        'n_estimators': [100, 200],       # Số lượng cây quyết định
+        'max_depth': [3, 5, 7],           # Độ sâu của cây
+        'learning_rate': [0.01, 0.1],     # Tốc độ học
+        'subsample': [0.8, 1.0],          # Lấy ngẫu nhiên dữ liệu để chống Overfit
+        'colsample_bytree': [0.8, 1.0]    # Lấy ngẫu nhiên features để chống Overfit
+    }
 
-    # ---------------------------------------------------------------------------
-    # 5. CALLBACKS VÀ HUẤN LUYỆN
-    # ---------------------------------------------------------------------------
-    early_stop = EarlyStopping(
-        monitor="val_accuracy", # Theo dõi thẳng điểm số thi thật
-        patience=8,             # Cho phép kiên nhẫn 8 vòng
-        restore_best_weights=True,
+    # Bắt đầu dò tìm
+    grid_search = GridSearchCV(
+        estimator=xgb_model, 
+        param_grid=param_grid, 
+        scoring='accuracy', 
+        cv=3, # Chia 3 nếp gấp để kiểm tra chéo
         verbose=1,
+        n_jobs=-1 # Dùng toàn bộ nhân CPU để chạy cho lẹ
     )
 
-    print(f"\n[5/5] Training (max epochs={EPOCHS}, batch={BATCH_SIZE})...")
+    print("⏳ Đang cày cuốc thử nghiệm các bộ tham số khác nhau (Có thể mất 1-2 phút)...")
+    grid_search.fit(X_train, y_train)
 
-    history = model.fit(
-        X_train, y_train,
-        epochs=EPOCHS,
-        batch_size=BATCH_SIZE,
-        validation_data=(X_test, y_test),
-        class_weight=cw_dict, # Nạp trọng số vào hàm fit
-        callbacks=[early_stop],
-        verbose=1,
-    )
+    # Lấy ra bộ thông số xịn nhất
+    best_xgb = grid_search.best_estimator_
+    print(f"\n✅ Đã tìm ra bộ thông số ngon nhất: {grid_search.best_params_}")
 
     # ---------------------------------------------------------------------------
-    # 6. ĐÁNH GIÁ VÀ LƯU MÔ HÌNH
+    # 4. ĐÁNH GIÁ TRÊN TẬP TEST VÀ LƯU MÔ HÌNH
     # ---------------------------------------------------------------------------
     print("\n========================================")
-    print("  EVALUATION ON TEST SET")
+    print("  EVALUATION ON TEST SET (XGBOOST)")
     print("========================================")
 
-    y_pred_prob = model.predict(X_test, batch_size=BATCH_SIZE, verbose=0)
-    y_pred      = (y_pred_prob >= 0.5).astype(int).flatten()
-
+    y_pred = best_xgb.predict(X_test)
     acc  = accuracy_score(y_test, y_pred)
-    loss_val, _ = model.evaluate(X_test, y_test, verbose=0)
 
     print(f"  Test Accuracy : {acc:.4f}  ({acc*100:.2f}%)")
-    print(f"  Test Loss     : {loss_val:.4f}")
     print("\nClassification Report:")
     print(classification_report(y_test, y_pred, target_names=["Ham (0)", "Scam (1)"]))
 
-    model.save(MODEL_OUT)
-    print(f"\n[DONE] Model saved -> {MODEL_OUT}")
+    # Lưu bằng joblib thay vì .h5
+    joblib.dump(best_xgb, MODEL_OUT)
+    print(f"\n[DONE] Đã lưu model xịn nhất vào: {MODEL_OUT}")
 
 if __name__ == "__main__":
     main()
