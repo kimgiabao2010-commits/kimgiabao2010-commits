@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Logs
+logs/*.log
+*.log
+
+# Databases / Data
+pending_reports.json
+re_train_dataset.csv
+data/
+csv/
+
+# Node (React Frontend)
+node_modules/
+dist/
+.eslintcache
+
+# Misc
+.vscode/
+temp_owasp_crs/
+*.h5
+*.bin

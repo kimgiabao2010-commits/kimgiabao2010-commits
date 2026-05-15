@@ -11,3 +11,8 @@ seaborn
 discord.py
 numpy
 tensorflow
+# ── Layer 3: DistilBERT ──────────────────────
+torch
+transformers
+fastapi
+uvicorn[standard]

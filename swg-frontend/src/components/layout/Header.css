@@ -1,0 +1,112 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 52px;
+  background: rgba(17, 17, 17, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border-soft);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  flex-shrink: 0;
+}
+
+.header__left { display: flex; align-items: center; gap: 10px; }
+
+.header__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -0.2px;
+}
+
+.header__subtitle {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.header__sep {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+}
+
+.header__right { display: flex; align-items: center; gap: 8px; }
+
+/* Stat chips */
+.header__stats { display: flex; align-items: center; gap: 6px; }
+
+.hstat {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.hstat__num {
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.hstat--danger .hstat__num { color: var(--red); }
+.hstat--safe   .hstat__num { color: var(--green); }
+.hstat--warn   .hstat__num { color: var(--amber); }
+.hstat--blue   .hstat__num { color: var(--blue); }
+
+.hstat__label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* Status button */
+.header__status-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.chip--online  { background: var(--green-bg); color: var(--green); border-color: rgba(48,209,88,0.25); }
+.chip--offline { background: var(--red-bg);   color: var(--red);   border-color: rgba(255,69,58,0.25); }
+.chip--checking{ background: var(--amber-bg); color: var(--amber); border-color: rgba(255,159,10,0.25); }
+
+.chip__dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.chip--online .chip__dot { animation: pulse 2.5s infinite; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+.header__ts {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  padding-left: 10px;
+  border-left: 1px solid var(--border-soft);
+}

