@@ -4,7 +4,7 @@
   justify-content: space-between;
   padding: 0 24px;
   height: 52px;
-  background: rgba(17, 17, 17, 0.8);
+  background: rgba(14, 14, 19, 0.75);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border-soft);

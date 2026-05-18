@@ -1,98 +1,24 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;1,14..32,400&display=swap');
+@import "tailwindcss";
 
-/* ── Reset ─────────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
-
-/* ══ Apple-style Design Tokens ════════════════════════════════
-   Reference: Apple Dark UI (iOS/macOS)
-   ───────────────────────────────────────────────────────────── */
-:root {
-  /* Backgrounds — Apple layered dark */
-  --bg-base:     #000000;
-  --bg-panel:    #111111;
-  --bg-card:     #1c1c1e;
-  --bg-elevated: #2c2c2e;
-  --bg-hover:    #3a3a3c;
-  --bg-active:   #48484a;
-
-  /* Separators — Apple style (very subtle) */
-  --border:      rgba(84, 84, 88, 0.65);
-  --border-soft: rgba(84, 84, 88, 0.35);
-  --border-strong: rgba(84, 84, 88, 0.9);
-
-  /* Apple system colors */
-  --blue:        #0A84FF;
-  --blue-dim:    #0071e3;
-  --blue-bg:     rgba(10, 132, 255, 0.12);
-  --blue-glow:   rgba(10, 132, 255, 0.2);
-
-  --red:         #FF453A;
-  --red-dim:     #d93025;
-  --red-bg:      rgba(255, 69, 58, 0.12);
-
-  --amber:       #FF9F0A;
-  --amber-dim:   #cc7a00;
-  --amber-bg:    rgba(255, 159, 10, 0.12);
-
-  --green:       #30D158;
-  --green-dim:   #25a244;
-  --green-bg:    rgba(48, 209, 88, 0.12);
-
-  --purple:      #BF5AF2;
-  --purple-bg:   rgba(191, 90, 242, 0.12);
-
-  /* Text — Apple opacity system */
-  --text-primary:   rgba(255, 255, 255, 0.9);
-  --text-secondary: rgba(235, 235, 245, 0.6);
-  --text-muted:     rgba(235, 235, 245, 0.35);
-  --text-dim:       rgba(235, 235, 245, 0.18);
-
-  /* Font */
-  --font-ui:   'Inter', -apple-system, 'SF Pro Display', BlinkMacSystemFont, sans-serif;
-  --font-mono: 'SF Mono', 'JetBrains Mono', ui-monospace, monospace;
-
-  /* Radius — Apple style */
-  --radius-sm: 10px;
-  --radius:    14px;
-  --radius-lg: 18px;
+/* ── Apple-style Global Reset ─────────────────────────────────────────────────── */
+html { 
+  scroll-behavior: smooth; 
+  background-color: #F5F5F7;
 }
 
 body {
-  font-family: var(--font-ui);
-  background: var(--bg-base);
-  color: var(--text-primary);
-  min-height: 100vh;
-  overflow-x: hidden;
+  font-family: 'Inter', -apple-system, 'SF Pro Display', BlinkMacSystemFont, sans-serif;
+  color: #111827;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-size: 14px;
-  line-height: 1.5;
 }
 
 /* ── Scrollbar ──────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(84,84,88,0.5); border-radius: 8px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(84,84,88,0.8); }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
 
 /* ── Selection ──────────────────────────────────────────────── */
-::selection { background: var(--blue-glow); color: var(--blue); }
-
-/* ── App Layout ─────────────────────────────────────────────── */
-#root { position: relative; z-index: 1; }
-
-.app-wrapper {
-  display: flex;
-  min-height: 100vh;
-}
-
-.main-area {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  overflow: auto;
-}
-
-.page-content { flex: 1; overflow: auto; }
+::selection { background: rgba(99, 102, 241, 0.2); color: #4f46e5; }

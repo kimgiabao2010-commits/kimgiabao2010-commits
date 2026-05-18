@@ -59,7 +59,7 @@
   font-family: var(--font-mono);
   font-size: 0.62rem;
   color: var(--text-muted);
-  background: rgba(0,0,0,0.3);
+  background: var(--bg-base);
 }
 
 .sidebar__time-label { color: var(--text-dim); font-size: 0.58rem; }

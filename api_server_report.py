@@ -27,6 +27,7 @@ import json
 import logging
 import os
 import sys
+import threading
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -68,6 +69,9 @@ if not CSV_FILE.exists():
                          "verified_at", "reported_at"])
     logger.info(f"📊 Đã tạo: {CSV_FILE}")
 
+# Lock bảo vệ đọc/ghi file đồng thời (thread-safe)
+_file_lock = threading.Lock()
+
 
 # ── Pydantic Schemas ──────────────────────────────────────────────
 
@@ -101,21 +105,23 @@ class VerifyRequest(BaseModel):
     admin_note: Optional[str] = None
 
 
-# ── Helper: đọc/ghi JSON ──────────────────────────────────────────
+# ── Helper: đọc/ghi JSON (thread-safe) ──────────────────────────────────
 def read_reports() -> list[dict]:
     """Đọc danh sách báo cáo từ file JSON."""
     try:
-        text = REPORTS_FILE.read_text(encoding="utf-8")
-        return json.loads(text) if text.strip() else []
+        with _file_lock:
+            text = REPORTS_FILE.read_text(encoding="utf-8")
+            return json.loads(text) if text.strip() else []
     except (json.JSONDecodeError, FileNotFoundError):
         return []
 
 
 def write_reports(reports: list[dict]) -> None:
-    """Ghi danh sách báo cáo vào file JSON (atomic write)."""
-    tmp = REPORTS_FILE.with_suffix(".tmp")
-    tmp.write_text(json.dumps(reports, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.replace(REPORTS_FILE)
+    """Ghi danh sách báo cáo vào file JSON (atomic write, thread-safe)."""
+    with _file_lock:
+        tmp = REPORTS_FILE.with_suffix(".tmp")
+        tmp.write_text(json.dumps(reports, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp.replace(REPORTS_FILE)
 
 
 def append_to_csv(report: dict, verdict: str) -> None:
@@ -124,20 +130,21 @@ def append_to_csv(report: dict, verdict: str) -> None:
     ft   = ai.get("fasttext") or {}
     db   = ai.get("distilbert") or {}
 
-    with open(CSV_FILE, "a", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow([
-            report.get("id", ""),
-            report.get("url", ""),
-            report.get("page_text_preview", "")[:500],
-            ft.get("prediction", ""),
-            ft.get("confidence", ""),
-            db.get("prediction", ""),
-            db.get("confidence", ""),
-            verdict,
-            datetime.now().isoformat(),
-            report.get("reported_at", ""),
-        ])
+    with _file_lock:
+        with open(CSV_FILE, "a", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                report.get("id", ""),
+                report.get("url", ""),
+                report.get("page_text_preview", "")[:500],
+                ft.get("prediction", ""),
+                ft.get("confidence", ""),
+                db.get("prediction", ""),
+                db.get("confidence", ""),
+                verdict,
+                datetime.now().isoformat(),
+                report.get("reported_at", ""),
+            ])
     logger.info(f"📊 CSV: Ghi nhận [{verdict.upper()}] cho {report.get('url', '')[:60]}")
 
 
@@ -292,6 +299,32 @@ async def delete_report(report_id: str):
     write_reports(reports)
     logger.info(f"🗑️  Đã xóa báo cáo [{report_id}]")
     return {"success": True, "message": f"Đã xóa báo cáo {report_id}."}
+
+
+@app.get("/api/verdict/{report_id}")
+async def get_verdict(report_id: str):
+    """
+    Extension polling endpoint — kiểm tra Admin đã xác nhận chưa.
+
+    Extension gọi mỗi 10 giây sau khi gửi báo cáo.
+    Trả về:
+      - status='pending'  → Admin chưa xem
+      - status='verified' → Admin đã xác nhận (kèm admin_verdict: 'scam' | 'safe')
+    """
+    reports = read_reports()
+    report = next((r for r in reports if r.get("id") == report_id), None)
+
+    if not report:
+        raise HTTPException(status_code=404, detail=f"Không tìm thấy báo cáo ID={report_id}")
+
+    return {
+        "report_id":     report_id,
+        "status":        report.get("status"),          # 'pending' | 'verified'
+        "admin_verdict": report.get("admin_verdict"),   # 'scam' | 'safe' | None
+        "admin_note":    report.get("admin_note", ""),
+        "verified_at":   report.get("verified_at"),
+        "url":           report.get("url", ""),
+    }
 
 
 @app.get("/api/export")

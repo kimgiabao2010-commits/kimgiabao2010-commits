@@ -73,5 +73,195 @@
     "admin_verdict": "scam",
     "verified_at": "2026-05-14T11:36:24.584455",
     "admin_note": ""
+  },
+  {
+    "id": "77614195",
+    "url": "https://tingia.gov.vn/cuc-du-lich.html",
+    "page_text_preview": "4. Khuyến cáo người dân Trung tâm xử lý tin giả, thông tin xấu độc Việt Nam (VAFC) đang phối hợp các cơ quan liên quan để xử lý các hành vi vi phạm được phát hiện. Để tránh trở thành nạn nhân của chiêu trò \"giả thật lẫn lộn\" này, Trung tâm Xử lý tin giả, thông tin xấu độc Việt Nam và Cục Du lịch Quốc gia Việt Nam khuyến cáo  Không tin vào \"Lợi nhuận khủng\" được bảo trợ bởi hình ảnh lãnh đạo: Các lãnh đạo và cơ quan nhà nước không bao giờ tham gia quảng cáo, kêu gọi đầu tư cho các sàn tiền ảo, ứng dụng kiếm tiền hay sản phẩm thương mại trên mạng xã hội.  Kiểm tra kỹ tên miền (URL): Khi đọc một bài báo, hãy nhìn kỹ địa chỉ trang web. Các trang giả mạo thường có tên miền lạ, sai khác một vài ký tự so với báo chính thống.  Xác thực nguồn tin: Đối với các thông tin liên quan đến ngành du lịch, người dân chỉ nên tham khảo tại trang chính thức: https://vietnamtourism.gov.vn  Báo cáo vi phạm: Nếu phát hiện hình ảnh Lãnh đạo bị cắt ghép hoặc các trang web giả mạo báo chí, hãy thông báo ngay cho",
+    "ai_prediction": {
+      "fasttext": {
+        "is_scam": true,
+        "confidence": 93.43873262405396,
+        "prediction": "Scam",
+        "ok": true
+      },
+      "distilbert": {
+        "is_scam": true,
+        "confidence": 99.41,
+        "prediction": "Scam",
+        "ok": true
+      }
+    },
+    "user_note": "Người dùng báo cáo AI nhận diện sai từ Warning Banner Extension",
+    "reported_at": "2026-05-18T20:12:34.229747",
+    "status": "verified",
+    "admin_verdict": "safe",
+    "verified_at": "2026-05-18T20:13:02.144847",
+    "admin_note": ""
+  },
+  {
+    "id": "eed59eb9",
+    "url": "https://tingia.gov.vn/cuc-du-lich.html",
+    "page_text_preview": "4. Khuyến cáo người dân Trung tâm xử lý tin giả, thông tin xấu độc Việt Nam (VAFC) đang phối hợp các cơ quan liên quan để xử lý các hành vi vi phạm được phát hiện. Để tránh trở thành nạn nhân của chiêu trò \"giả thật lẫn lộn\" này, Trung tâm Xử lý tin giả, thông tin xấu độc Việt Nam và Cục Du lịch Quốc gia Việt Nam khuyến cáo  Không tin vào \"Lợi nhuận khủng\" được bảo trợ bởi hình ảnh lãnh đạo: Các lãnh đạo và cơ quan nhà nước không bao giờ tham gia quảng cáo, kêu gọi đầu tư cho các sàn tiền ảo, ứng dụng kiếm tiền hay sản phẩm thương mại trên mạng xã hội.  Kiểm tra kỹ tên miền (URL): Khi đọc một bài báo, hãy nhìn kỹ địa chỉ trang web. Các trang giả mạo thường có tên miền lạ, sai khác một vài ký tự so với báo chính thống.  Xác thực nguồn tin: Đối với các thông tin liên quan đến ngành du lịch, người dân chỉ nên tham khảo tại trang chính thức: https://vietnamtourism.gov.vn  Báo cáo vi phạm: Nếu phát hiện hình ảnh Lãnh đạo bị cắt ghép hoặc các trang web giả mạo báo chí, hãy thông báo ngay cho",
+    "ai_prediction": {
+      "fasttext": {
+        "is_scam": true,
+        "confidence": 93.43873262405396,
+        "prediction": "Scam",
+        "ok": true
+      },
+      "distilbert": {
+        "is_scam": true,
+        "confidence": 99.41,
+        "prediction": "Scam",
+        "ok": true
+      }
+    },
+    "user_note": "Người dùng báo cáo AI nhận diện sai từ Warning Banner Extension",
+    "reported_at": "2026-05-18T20:13:39.412751",
+    "status": "verified",
+    "admin_verdict": "scam",
+    "verified_at": "2026-05-18T20:13:50.936217",
+    "admin_note": ""
+  },
+  {
+    "id": "89162080",
+    "url": "https://tingia.gov.vn/cuc-du-lich.html",
+    "page_text_preview": "Cảnh báo hành vi giả mạo, cắt ghép hình ảnh để quảng cáo lừa đảo tiền ảo, phát tán thông tin sai sự thật và lừa đảo 26/01/2026 - 17:37 31 4,018 Trung tâm Xử lý tin giả, thông tin xấu độc Việt Nam (VAFC) cảnh báo về tình trạng các đối tượng lừa đảo sử dụng công nghệ để cắt ghép hình ảnh lãnh đạo cơ quan nhà nước, lãnh đạo doanh nghiệp vào khung hình (măng-sét) các tờ báo lớn để tạo niềm tin, dụ dỗ người dân tham gia đầu tư tài chính, tiền ảo và thực hiện các thủ đoạn lừa đảo.  1. Nhận diện thủ đoạn \"Mượn danh Lãnh đạo, ghép mác Báo chí\"  Thời gian gần đây, VAFC ghi nhận sự gia tăng của các chiến dịch phát tán tin giả với kịch bản tinh vi nhằm \"thao túng tâm lý\" người dùng mạng xã hội. Công thức chung của các đối tượng này bao gồm:  Tìm kiếm hình ảnh thật của các Lãnh đạo tại các sự kiện, hội nghị chính thống.  Sử dụng công nghệ chỉnh sửa ảnh (Photoshop, AI) để thay đổi phông nền, bối cảnh sang các nội dung quảng cáo (sàn tiền ảo, dự án đầu tư siêu lợi nhuận, thuốc đông y...).  Đặc biệt ",
+    "ai_prediction": {
+      "fasttext": {
+        "is_scam": true,
+        "confidence": 80.89132308959961,
+        "prediction": "Scam",
+        "ok": true
+      },
+      "distilbert": {
+        "is_scam": true,
+        "confidence": 99.3,
+        "prediction": "Scam",
+        "ok": true
+      }
+    },
+    "user_note": "Người dùng báo cáo AI nhận diện sai từ Warning Banner Extension",
+    "reported_at": "2026-05-18T20:22:56.400994",
+    "status": "verified",
+    "admin_verdict": "safe",
+    "verified_at": "2026-05-18T20:23:03.119915",
+    "admin_note": ""
+  },
+  {
+    "id": "5a399348",
+    "url": "https://tingia.gov.vn/cuc-du-lich.html",
+    "page_text_preview": "Cảnh báo hành vi giả mạo, cắt ghép hình ảnh để quảng cáo lừa đảo tiền ảo, phát tán thông tin sai sự thật và lừa đảo 26/01/2026 - 17:37 31 4,019 Trung tâm Xử lý tin giả, thông tin xấu độc Việt Nam (VAFC) cảnh báo về tình trạng các đối tượng lừa đảo sử dụng công nghệ để cắt ghép hình ảnh lãnh đạo cơ quan nhà nước, lãnh đạo doanh nghiệp vào khung hình (măng-sét) các tờ báo lớn để tạo niềm tin, dụ dỗ người dân tham gia đầu tư tài chính, tiền ảo và thực hiện các thủ đoạn lừa đảo.  1. Nhận diện thủ đoạn \"Mượn danh Lãnh đạo, ghép mác Báo chí\"  Thời gian gần đây, VAFC ghi nhận sự gia tăng của các chiến dịch phát tán tin giả với kịch bản tinh vi nhằm \"thao túng tâm lý\" người dùng mạng xã hội. Công thức chung của các đối tượng này bao gồm:  Tìm kiếm hình ảnh thật của các Lãnh đạo tại các sự kiện, hội nghị chính thống.  Sử dụng công nghệ chỉnh sửa ảnh (Photoshop, AI) để thay đổi phông nền, bối cảnh sang các nội dung quảng cáo (sàn tiền ảo, dự án đầu tư siêu lợi nhuận, thuốc đông y...).  Đặc biệt ",
+    "ai_prediction": {
+      "fasttext": {
+        "is_scam": true,
+        "confidence": 74.86442923545837,
+        "prediction": "Scam",
+        "ok": true
+      },
+      "distilbert": {
+        "is_scam": true,
+        "confidence": 99.31,
+        "prediction": "Scam",
+        "ok": true
+      }
+    },
+    "user_note": "Người dùng báo cáo AI nhận diện sai từ Warning Banner Extension",
+    "reported_at": "2026-05-18T21:07:26.652619",
+    "status": "verified",
+    "admin_verdict": "safe",
+    "verified_at": "2026-05-18T21:07:33.996204",
+    "admin_note": ""
+  },
+  {
+    "id": "510b4f5d",
+    "url": "https://vietnamnet.vn/24-hinh-thuc-lua-dao-truc-tuyen-pho-bien-tren-khong-gian-mang-viet-nam-2203625.html",
+    "page_text_preview": "Thứ hai, 18/05/2026 # Luyện thi lớp 10 Podcast Tuần Việt Nam    Đăng nhập   Chính trị Thời sự Kinh doanh Dân tộc và Tôn giáo Giáo dục Thế giới Thể thao Văn hóa - Giải trí Đời sống Sức khỏe Công nghệ Pháp luật Xe Bất động sản Du lịch Bạn đọc  CÔNG NGHỆ AN NINH MẠNG Thứ năm, 19/10/2023 - 06:10 24 hình thức lừa đảo phổ biến trên không gian mạng Việt Nam Hải Phong   Xem các bài viết của tác giả Sự kiện: Cảnh báo lừa đảo trực tuyến  24 hình thức lừa đảo phổ biến diễn ra trên không gian mạng Việt Nam chủ yếu nhắm vào các nhóm đối tượng người cao tuổi, trẻ em, sinh viên, công nhân,... Theo Cục An toàn thông tin (Bộ TT&TT), các vụ lừa đảo trực tuyến đã và đang diễn biến phức tạp trên môi trường số. Trong 6 tháng đầu năm 2023, tình hình lừa đảo trực tuyến tại Việt Nam tăng 64,78% so với cùng kỳ năm ngoái; tăng 37,82 % so với 6 tháng cuối năm 2022.   Các vụ lừa đảo trực tuyến đã và đang diễn biến phức tạp trên môi trường số. 24 hình thức lừa đảo trực tuyến phổ biến  Cục An toàn thông tin cho biế",
+    "ai_prediction": {
+      "fasttext": null,
+      "distilbert": null
+    },
+    "user_note": "Người dùng báo cáo AI nhận diện sai từ Warning Banner Extension",
+    "reported_at": "2026-05-18T21:51:00.159373",
+    "status": "verified",
+    "admin_verdict": "safe",
+    "verified_at": "2026-05-18T21:51:13.670853",
+    "admin_note": ""
+  },
+  {
+    "id": "528e65f2",
+    "url": "https://tingia.gov.vn/ra-mat-ung-dung-phong-chong-lua-dao-ntrust.html",
+    "page_text_preview": "Hiệp hội An ninh mạng quốc gia (Bộ Công an) đã chính thức ra mắt ứng dụng phòng, chống lừa đảo nTrust    Hiệp hội An ninh mạng quốc gia (Bộ Công an) vừa ra mắt ứng dụng phòng, chống lừa đảo nTrust. Đây là ứng dụng hoàn toàn miễn phí, sử dụng cho điện thoại thông minh. Phần mềm được kỳ vọng sẽ giúp người dân phát hiện các dấu hiệu lừa đảo thông qua kiểm tra số điện thoại, số tài khoản, đường dẫn trang web (link) và mã QR.    nTrust được giới thiệu lần đầu vào ngày 13/5 tại Hội thảo Phòng chống lừa đảo trên không gian mạng do Hiệp hội An ninh mạng quốc gia tổ chức.  Ứng dụng đã được cập nhật, hoàn thiện các tính năng theo góp ý từ hàng trăm tình nguyện viên tham gia sử dụng bản thử nghiệm (Beta) trong tháng 6/2024, trong đó cải thiện đáng kể khả năng quét mã độc và tối ưu hiệu năng hoạt động của phần mềm.  Hiện tại, người dùng đã có thể tải nTrust về điện thoại từ hai kho ứng dụng phổ biến là Google Play Store đối với hệ điều hành Android và App Store đối với hệ điều hành iOS.  Nếu phát ",
+    "ai_prediction": {
+      "fasttext": {
+        "is_scam": true,
+        "confidence": 68.70092153549194,
+        "prediction": "Scam",
+        "ok": true
+      },
+      "distilbert": {
+        "is_scam": true,
+        "confidence": 99.18,
+        "prediction": "Scam",
+        "ok": true
+      }
+    },
+    "user_note": "Người dùng báo cáo AI nhận diện sai từ Warning Banner Extension",
+    "reported_at": "2026-05-18T21:58:52.079369",
+    "status": "verified",
+    "admin_verdict": "safe",
+    "verified_at": "2026-05-18T21:59:07.878529",
+    "admin_note": ""
+  },
+  {
+    "id": "1b931368",
+    "url": "https://tingia.gov.vn/ra-mat-ung-dung-phong-chong-lua-dao-ntrust.html",
+    "page_text_preview": "nTrust được giới thiệu lần đầu vào ngày 13/5 tại Hội thảo Phòng chống lừa đảo trên không gian mạng do Hiệp hội An ninh mạng quốc gia tổ chức.  Ứng dụng đã được cập nhật, hoàn thiện các tính năng theo góp ý từ hàng trăm tình nguyện viên tham gia sử dụng bản thử nghiệm (Beta) trong tháng 6/2024, trong đó cải thiện đáng kể khả năng quét mã độc và tối ưu hiệu năng hoạt động của phần mềm.  Hiện tại, người dùng đã có thể tải nTrust về điện thoại từ hai kho ứng dụng phổ biến là Google Play Store đối với hệ điều hành Android và App Store đối với hệ điều hành iOS.  Nếu phát hiện bất cứ dấu hiệu lừa đảo nào, người dùng có thể gửi báo cáo số điện thoại, số tài khoản, đường link, phần mềm... nghi ngờ về trung tâm thông qua tính năng tích hợp sẵn trên ứng dụng. Các dữ liệu báo cáo này sẽ được tập hợp, xác minh và cập nhật cho toàn bộ cộng đồng người sử dụng nTrust.  Nguồn: VOV2",
+    "ai_prediction": {
+      "fasttext": {
+        "is_scam": true,
+        "confidence": 59.04698967933655,
+        "prediction": "Scam",
+        "ok": true
+      },
+      "distilbert": {
+        "is_scam": true,
+        "confidence": 99.07,
+        "prediction": "Scam",
+        "ok": true
+      }
+    },
+    "user_note": "Người dùng báo cáo AI nhận diện sai từ Warning Banner Extension",
+    "reported_at": "2026-05-18T22:02:22.806502",
+    "status": "verified",
+    "admin_verdict": "safe",
+    "verified_at": "2026-05-18T22:02:38.865231",
+    "admin_note": ""
+  },
+  {
+    "id": "bb336b56",
+    "url": "https://tingia.gov.vn/ra-mat-ung-dung-phong-chong-lua-dao-ntrust.html",
+    "page_text_preview": "nTrust được giới thiệu lần đầu vào ngày 13/5 tại Hội thảo Phòng chống lừa đảo trên không gian mạng do Hiệp hội An ninh mạng quốc gia tổ chức.  Ứng dụng đã được cập nhật, hoàn thiện các tính năng theo góp ý từ hàng trăm tình nguyện viên tham gia sử dụng bản thử nghiệm (Beta) trong tháng 6/2024, trong đó cải thiện đáng kể khả năng quét mã độc và tối ưu hiệu năng hoạt động của phần mềm.  Hiện tại, người dùng đã có thể tải nTrust về điện thoại từ hai kho ứng dụng phổ biến là Google Play Store đối với hệ điều hành Android và App Store đối với hệ điều hành iOS.  Nếu phát hiện bất cứ dấu hiệu lừa đảo nào, người dùng có thể gửi báo cáo số điện thoại, số tài khoản, đường link, phần mềm... nghi ngờ về trung tâm thông qua tính năng tích hợp sẵn trên ứng dụng. Các dữ liệu báo cáo này sẽ được tập hợp, xác minh và cập nhật cho toàn bộ cộng đồng người sử dụng nTrust.  Nguồn: VOV2",
+    "ai_prediction": {
+      "fasttext": {
+        "is_scam": true,
+        "confidence": 59.04698967933655,
+        "prediction": "Scam",
+        "ok": true
+      },
+      "distilbert": {
+        "is_scam": true,
+        "confidence": 99.07,
+        "prediction": "Scam",
+        "ok": true
+      }
+    },
+    "user_note": "Người dùng báo cáo AI nhận diện sai từ Warning Banner Extension",
+    "reported_at": "2026-05-18T22:16:06.549880",
+    "status": "verified",
+    "admin_verdict": "safe",
+    "verified_at": "2026-05-18T22:36:42.733474",
+    "admin_note": ""
   }
 ]

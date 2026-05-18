@@ -6,17 +6,90 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             alert("❌ Lỗi: Không thể kết nối tới máy chủ quét SWG.");
             return;
         }
-
         if (request.isMalicious) {
             drawWarningBanner(request.text, request.aiData);
         } else {
-            alert("✅ Phân tích an toàn: Không phát hiện nội dung lừa đảo/độc hại.");
+            drawSuccessBanner(request.text, request.layer);
         }
+
     } else if (request.action === "dashboard_log") {
-        // Chuyển tiếp dữ liệu từ extension vào web page (Dashboard)
         window.dispatchEvent(new CustomEvent('swg_extension_scan', { detail: request.data }));
+
+    } else if (request.action === "show_verdict") {
+        // Admin đã xác nhận → hiển thị phán quyết cho người dùng
+        drawVerdictBanner(request.verdict, request.adminNote || "");
     }
 });
+
+// Hàm vẽ banner khi văn bản An Toàn
+function drawSuccessBanner(text, layer) {
+    const oldBanner = document.getElementById("swg-warning-banner");
+    if (oldBanner) oldBanner.remove();
+
+    const banner = document.createElement("div");
+    banner.id = "swg-warning-banner";
+    banner.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        background-color: #10b981;
+        color: white;
+        z-index: 2147483647;
+        text-align: center;
+        padding: 15px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-size: 16px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    `;
+
+    let msg = "Không phát hiện dấu hiệu lừa đảo.";
+    if (layer === "TRUSTED_CITATION") {
+        msg = "Văn bản có trích dẫn Nguồn Báo chí Uy tín. Bỏ qua phân tích AI.";
+    } else if (layer === "TRUSTED_DOMAIN") {
+        msg = "Trang web thuộc Danh sách Nguồn tin cậy (Trusted Domain). Bỏ qua phân tích AI.";
+    }
+
+    let previewText = text.length > 150 ? text.substring(0, 150) + '...' : text;
+
+    banner.innerHTML = `
+        <div style="margin-bottom: 10px; font-size: 18px;">✅ <strong>PHÂN TÍCH AN TOÀN:</strong> ${msg}</div>
+        <div style="
+            background-color: rgba(255, 255, 255, 0.2);
+            padding: 10px;
+            margin: 10px auto;
+            max-width: 80%;
+            border-radius: 4px;
+            font-style: italic;
+            font-size: 14px;
+            text-align: left;
+            word-wrap: break-word;
+        ">
+            "${previewText}"
+        </div>
+        <button id="swg-close-btn" style="
+            padding: 8px 16px;
+            background-color: transparent;
+            color: white;
+            border: 1px solid white;
+            cursor: pointer;
+            border-radius: 4px;
+        ">Đóng</button>
+    `;
+    
+    document.body.appendChild(banner);
+
+    document.getElementById("swg-close-btn").addEventListener("click", () => {
+        banner.remove();
+    });
+    
+    // Tự động đóng sau 5 giây
+    setTimeout(() => {
+        if (document.getElementById("swg-warning-banner")) {
+            document.getElementById("swg-warning-banner").remove();
+        }
+    }, 5000);
+}
 
 function drawWarningBanner(text, aiData) {
     // Xóa banner cũ nếu có
@@ -142,3 +215,87 @@ function drawWarningBanner(text, aiData) {
         }
     });
 }
+
+// ── Banner hiển thị phán quyết của Admin ──────────────────────────────────
+function drawVerdictBanner(verdict, adminNote) {
+    // Xóa banner cũ nếu có
+    const old = document.getElementById("swg-verdict-banner");
+    if (old) old.remove();
+
+    const isScam  = verdict === "scam";
+    const bgColor = isScam ? "#b91c1c" : "#15803d";
+    const icon    = isScam ? "🚨" : "✅";
+    const title   = isScam
+        ? "ADMIN XÁC NHẬN: ĐÂY LÀ NỘI DUNG LỪA ĐẢO!"
+        : "ADMIN XÁC NHẬN: NỘI DUNG AN TOÀN";
+
+    const banner = document.createElement("div");
+    banner.id = "swg-verdict-banner";
+    banner.style.cssText = `
+        position: fixed;
+        top: 0; left: 0; width: 100%;
+        background-color: ${bgColor};
+        color: white;
+        z-index: 2147483647;
+        text-align: center;
+        padding: 18px 20px;
+        font-family: 'Segoe UI', sans-serif;
+        font-size: 16px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        border-bottom: 3px solid rgba(255,255,255,0.3);
+    `;
+
+    const noteHTML = adminNote
+        ? `<div style="font-size:13px; margin-top:6px; opacity:0.9;">
+               💬 Ghi chú của Admin: "${adminNote}"
+           </div>`
+        : "";
+
+    if (isScam) {
+        banner.innerHTML = `
+            <div style="font-size:18px; font-weight:bold; margin-bottom:10px;">
+                ${icon} ${title}
+            </div>
+            ${noteHTML}
+            <div style="margin-top:12px;">
+                <button id="swg-verdict-block" style="
+                    padding: 10px 24px; margin-right: 12px;
+                    background: white; color: #b91c1c;
+                    border: none; border-radius: 6px;
+                    font-weight: bold; font-size: 15px; cursor: pointer;
+                ">🚫 Chặn trang này</button>
+                <button id="swg-verdict-allow" style="
+                    padding: 10px 24px;
+                    background: transparent; color: white;
+                    border: 2px solid white; border-radius: 6px;
+                    font-size: 15px; cursor: pointer;
+                ">✋ Cho phép (tự chịu trách nhiệm)</button>
+            </div>
+        `;
+    } else {
+        banner.innerHTML = `
+            <div style="font-size:18px; font-weight:bold;">
+                ${icon} ${title} — Báo cáo của bạn đã được xem xét.
+            </div>
+            ${noteHTML}
+            <div style="font-size:13px; margin-top:8px; opacity:0.85;">
+                Banner này sẽ tự đóng sau 5 giây...
+            </div>
+        `;
+    }
+
+    document.body.appendChild(banner);
+
+    if (isScam) {
+        document.getElementById("swg-verdict-block").addEventListener("click", () => {
+            // Chặn: chuyển tab về trang trắng an toàn
+            window.location.href = "about:blank";
+        });
+        document.getElementById("swg-verdict-allow").addEventListener("click", () => {
+            banner.remove();
+        });
+    } else {
+        // Tự đóng sau 5 giây nếu an toàn
+        setTimeout(() => banner.remove(), 5000);
+    }
+}

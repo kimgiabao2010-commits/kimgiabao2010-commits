@@ -56,7 +56,7 @@
   align-items: center;
   justify-content: center;
   font-size: 1rem;
-  background: rgba(255,255,255,0.05);
+  background: var(--bg-elevated);
 }
 
 .kpi-card__num {
@@ -106,7 +106,7 @@
   justify-content: space-between;
   padding: 13px 16px;
   border-bottom: 1px solid var(--border-soft);
-  background: rgba(255,255,255,0.02);
+  background: var(--bg-base);
 }
 
 .dash-panel__title {
@@ -195,7 +195,7 @@
 }
 
 .event-table tr:last-child td { border-bottom: none; }
-.event-table tr:hover td { background: rgba(255,255,255,0.03); }
+.event-table tr:hover td { background: var(--bg-hover); }
 
 .atk-tag {
   font-size: 0.68rem;
@@ -245,7 +245,7 @@
 }
 
 .pipe-arch__tag {
-  background: rgba(255,255,255,0.03);
+  background: var(--bg-base);
   padding: 7px 12px;
   font-size: 0.65rem;
   font-weight: 600;

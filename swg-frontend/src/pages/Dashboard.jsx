@@ -1,284 +1,440 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
-  PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
-  AreaChart, Area, XAxis, YAxis, CartesianGrid,
-  BarChart, Bar,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  RadialBarChart,
+  RadialBar,
+  Tooltip,
 } from 'recharts';
 import useScanStore from '../store/scanStore';
-import ThreatBadge from '../components/security/ThreatBadge';
-import { formatDateTime } from '../utils/helpers';
-import './Dashboard.css';
+import {
+  Shield, Zap, Target, Crosshair, Hexagon,
+  TerminalSquare, AlertTriangle, CheckSquare,
+  Layers, Activity, GitBranch, Radio, Brain
+} from 'lucide-react';
 
-const SiemTooltip = ({ active, payload, label }) => {
+/* ── Tooltip ──────────────────────────────────────────────── */
+const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="siem-tooltip">
-      {label && <div className="siem-tooltip__label">{label}</div>}
-      {payload.map((p, i) => (
-        <div key={i} className="siem-tooltip__row">
-          <span style={{ color: p.color }}>{p.name}</span>
-          <span className="siem-tooltip__val">{p.value}</span>
+    <div className="bg-white p-4 border border-gray-200 shadow-sm min-w-[140px]">
+      {label && <p className="text-gray-400 text-[0.65rem] font-bold uppercase tracking-widest mb-3">{label}</p>}
+      {payload.map((entry, i) => (
+        <div key={i} className="flex items-center justify-between gap-6 mb-1.5 last:mb-0">
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-sm flex-shrink-0" style={{ backgroundColor: entry.fill || entry.color }} />
+            <span className="text-[0.65rem] font-bold text-gray-700 uppercase tracking-wide">{entry.name}</span>
+          </div>
+          <span className="text-[0.7rem] font-mono font-bold text-gray-900">{entry.value}</span>
         </div>
       ))}
     </div>
   );
 };
 
-const Panel = ({ title, badge, children, className = '' }) => (
-  <div className={`dash-panel ${className}`}>
-    <div className="dash-panel__header">
-      <span className="dash-panel__title">{title}</span>
-      {badge && <span className="dash-panel__badge">{badge}</span>}
+/* ── Metric card ──────────────────────────────────────────── */
+const MetricCard = ({ title, value, sub, icon: Icon, dim = false }) => (
+  <div className="bg-white border border-gray-200/80 p-6 flex flex-col justify-between hover:border-gray-300 transition-colors">
+    <div className="flex items-center justify-between mb-4">
+      <h3 className="text-gray-400 text-[0.65rem] font-bold uppercase tracking-widest">{title}</h3>
+      <Icon size={15} strokeWidth={1.25} className="text-gray-300" />
     </div>
-    <div className="dash-panel__body">{children}</div>
+    <div>
+      <span className={`text-3xl font-black tracking-tighter ${dim ? 'text-gray-400' : 'text-gray-900'}`}>{value}</span>
+      {sub && <p className="mt-1.5 text-[0.65rem] font-semibold text-gray-400 uppercase tracking-widest">{sub}</p>}
+    </div>
   </div>
 );
 
-const KpiCard = ({ label, value, sub, color, icon }) => (
-  <div className="kpi-card" style={{ '--kpi-color': color }}>
-    <div className="kpi-card__top">
-      <div className="kpi-card__icon">{icon}</div>
+/* ── Pipeline node ────────────────────────────────────────── */
+const PipelineNode = ({ label, port, iconColor = 'text-emerald-500', isLast = false }) => (
+  <div className="flex flex-col items-center">
+    <div className="w-full bg-white border border-gray-200/80 p-4 flex items-center gap-4">
+      <Hexagon size={13} strokeWidth={1.5} className={iconColor} />
+      <div>
+        <h4 className="text-gray-900 font-bold text-[0.68rem] uppercase tracking-widest">{label}</h4>
+        {port && <p className="text-gray-400 text-[0.58rem] font-mono mt-0.5">{port}</p>}
+      </div>
     </div>
-    <div className="kpi-card__num">{value}</div>
-    <div className="kpi-card__label">{label}</div>
-    {sub && <div className="kpi-card__sub">{sub}</div>}
+    {!isLast && <div className="h-4 w-px bg-gray-200" />}
   </div>
 );
 
-const PIE_COLORS = ['#10b981', '#f43f5e', '#f59e0b'];
-
-const Dashboard = () => {
-  const { stats, history, wafEvents } = useScanStore();
-
-  const blockRate = stats.total > 0
-    ? Math.round(((stats.blockedWAF + stats.blockedAI) / stats.total) * 100)
-    : 0;
-
-  const pieData = [
-    { name: 'An toàn',    value: stats.safe },
-    { name: 'WAF chặn',   value: stats.blockedWAF },
-    { name: 'AI chặn',    value: stats.blockedAI },
-  ].filter(d => d.value > 0);
-
-  const areaData = history.slice(0, 10).reverse().map((h, i) => {
-    const isBlocked = h.result?.waf_blocked || h.result?.fasttext_blocked || h.result?.distilbert_blocked;
-    return {
-      t:       `#${i + 1}`,
-      safe:    isBlocked ? 0 : 1,
-      blocked: isBlocked ? 1 : 0,
-    };
-  });
-
-  const recentEvents = wafEvents.slice(0, 6);
-
-  const typeMap = {};
-  wafEvents.forEach(e => { typeMap[e.type] = (typeMap[e.type] || 0) + 1; });
-  const typeData = Object.entries(typeMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([name,value])=>({name,value}));
-
-  const attackTagClass = (type = '') => {
-    const t = type.toLowerCase();
-    if (t.includes('sql')) return 'sql';
-    if (t.includes('xss')) return 'xss';
-    if (t.includes('cmd')) return 'cmd';
-    if (t.includes('url')) return 'url';
-    return 'unk';
+/* ── Verdict badge ────────────────────────────────────────── */
+const LogBadge = ({ status }) => {
+  const map = {
+    SAFE:   { cls: 'bg-emerald-50 text-emerald-700 border-emerald-200/70', Icon: CheckSquare },
+    SCAM:   { cls: 'bg-amber-50 text-amber-700 border-amber-200/70',       Icon: AlertTriangle },
+    ATTACK: { cls: 'bg-rose-50 text-rose-700 border-rose-200/70',          Icon: Crosshair },
   };
+  const { cls, Icon } = map[status] || { cls: 'bg-gray-50 text-gray-600 border-gray-200', Icon: Radio };
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 border rounded-sm text-[0.6rem] font-bold uppercase tracking-widest ${cls}`}>
+      <Icon size={10} strokeWidth={2} />{status}
+    </span>
+  );
+};
+
+/* ════════════════════════════════════════════════════════
+   MAIN DASHBOARD
+   ════════════════════════════════════════════════════════ */
+export default function Dashboard() {
+  const { stats, history } = useScanStore();
+
+  /* ── All analytics derived from REAL store data only ─ */
+  const analytics = useMemo(() => {
+    const { total, blockedWAF, blockedAI, safe } = stats;
+    const threats = blockedWAF + blockedAI;
+
+    // Accuracy: safe / total  (show N/A if no data)
+    const accuracy = total > 0
+      ? ((safe / total) * 100).toFixed(1) + '%'
+      : '—';
+
+    // Avg confidence from history entries that have confidence
+    const confidenceValues = history
+      .map(h => h.result?.confidence)
+      .filter(v => typeof v === 'number' && v > 0);
+    const avgConf = confidenceValues.length > 0
+      ? Math.round(confidenceValues.reduce((a, b) => a + b, 0) / confidenceValues.length * 100) + '%'
+      : '—';
+
+    // Layer-by-layer: count how many requests EACH LAYER processed
+    // L1 WAF sees everything
+    // L2 FastText sees what WAF passed
+    // L3 DistilBERT sees what FastText passed
+    let wafBlocked = 0, fasttextBlocked = 0, distilbertBlocked = 0;
+    let wafProcessed = history.length;  // every request hits WAF
+    let fasttextProcessed = 0, distilbertProcessed = 0;
+
+    history.forEach(h => {
+      const r = h.result || {};
+      if (r.blocked || r.waf_blocked) {
+        wafBlocked++;
+        // blocked at WAF → never reaches L2/L3
+      } else {
+        fasttextProcessed++;
+        if (r.fasttext_blocked) {
+          fasttextBlocked++;
+          // blocked at FastText → never reaches L3
+        } else {
+          distilbertProcessed++;
+          if (r.distilbert_blocked) distilbertBlocked++;
+        }
+      }
+    });
+
+    const hasData = total > 0;
+
+    // Verdict donut
+    const verdictData = hasData
+      ? [
+          { name: 'SAFE',   value: safe,       color: '#10b981', pct: Math.round(safe / total * 100) },
+          { name: 'SCAM',   value: blockedAI,  color: '#f59e0b', pct: Math.round(blockedAI / total * 100) },
+          { name: 'ATTACK', value: blockedWAF, color: '#e11d48', pct: Math.round(blockedWAF / total * 100) },
+        ].filter(d => d.value > 0)
+      : [];
+
+    // AI Confidence distribution — split into 3 actionable buckets:
+    // HIGH  >80%  → AI is decisive (BLOCK or PASS with confidence)
+    // MED   40–80% → AI uncertain → needs Human-in-the-Loop review
+    // LOW   <40%  → AI thinks it's safe but borderline
+    let confHigh = 0, confMed = 0, confLow = 0;
+    confidenceValues.forEach(c => {
+      const pct = c * 100;
+      if (pct >= 80)       confHigh++;
+      else if (pct >= 40)  confMed++;
+      else                 confLow++;
+    });
+    const confTotal = confidenceValues.length;
+    const confData = confTotal > 0
+      ? [
+          { name: 'DECISIVE  ≥80%',  value: confHigh, pct: Math.round(confHigh / confTotal * 100), fill: '#1e293b' },
+          { name: 'UNCERTAIN 40–79%', value: confMed,  pct: Math.round(confMed  / confTotal * 100), fill: '#f59e0b' },
+          { name: 'LOW RISK  <40%',  value: confLow,  pct: Math.round(confLow  / confTotal * 100), fill: '#10b981' },
+        ]
+      : [];
+
+    return { total, threats, safe, blockedWAF, blockedAI, accuracy, avgConf, verdictData, confData, confTotal, hasData };
+  }, [stats, history]);
 
   return (
-    <div className="dashboard" id="dashboard-page">
+    <div className="min-h-screen bg-[#F5F5F7] p-10 font-sans text-gray-900 w-full max-w-[1600px] mx-auto">
 
-      {/* KPIs */}
-      <div className="dashboard__kpis">
-        <KpiCard label="Tổng quét"    value={stats.total}      icon="🔍" color="var(--blue)"  />
-        <KpiCard label="WAF chặn"     value={stats.blockedWAF} icon="🔥" color="var(--red)"   sub="Layer 1" />
-        <KpiCard label="AI chặn"      value={stats.blockedAI}  icon="🧠" color="var(--amber)" sub="Layer 2" />
-        <KpiCard label="An toàn"      value={stats.safe}       icon="✅" color="var(--green)" />
-        <KpiCard label="Tỷ lệ chặn"  value={`${blockRate}%`}  icon="📊" color={blockRate > 50 ? 'var(--red)' : 'var(--blue)'} />
-        <KpiCard label="Sự kiện WAF" value={wafEvents.length}  icon="🛡️" color="var(--blue)"  sub="Phiên này" />
+      {/* ── HEADER ──────────────────────────────────────── */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-6 border-b border-gray-200 pb-4">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-gray-900 mb-1 flex items-center gap-3">
+            <Target size={19} strokeWidth={1.5} className="text-indigo-600" />
+            OPERATIONAL OVERVIEW
+          </h1>
+          <p className="text-xs text-gray-500 font-medium uppercase tracking-widest">
+            Real-time gateway telemetry — session data only
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <TerminalSquare size={13} strokeWidth={1.5} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="SEARCH TELEMETRY..."
+              className="pl-9 pr-4 py-2 bg-white border border-gray-200 text-xs font-bold tracking-widest placeholder:text-gray-300 focus:outline-none focus:border-gray-400 w-64 uppercase"
+            />
+          </div>
+          <div className="px-4 py-2 bg-gray-900 text-white font-bold text-[0.65rem] tracking-widest uppercase flex items-center gap-2">
+            <Shield size={11} strokeWidth={1.5} /> ADMIN: ACTIVE
+          </div>
+        </div>
       </div>
 
-      {/* Grid */}
-      <div className="dashboard__grid">
+      {/* ── METRICS (all real) ──────────────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <MetricCard
+          title="Total Scanned"
+          value={analytics.total.toLocaleString()}
+          sub="THIS SESSION"
+          icon={Zap}
+          dim={analytics.total === 0}
+        />
+        <MetricCard
+          title="Threats Blocked"
+          value={analytics.threats.toLocaleString()}
+          sub={`WAF: ${analytics.blockedWAF}  ·  AI: ${analytics.blockedAI}`}
+          icon={Shield}
+          dim={analytics.threats === 0}
+        />
+        <MetricCard
+          title="Safe Requests"
+          value={analytics.total > 0 ? analytics.accuracy : '—'}
+          sub={analytics.total > 0 ? `${analytics.safe} REQUESTS PASSED` : 'NO DATA YET'}
+          icon={Crosshair}
+          dim={analytics.total === 0}
+        />
+        <MetricCard
+          title="Avg AI Confidence"
+          value={analytics.avgConf}
+          sub={analytics.avgConf !== '—' ? 'FROM SCAN RESULTS' : 'NO DATA YET'}
+          icon={TerminalSquare}
+          dim={analytics.avgConf === '—'}
+        />
+      </div>
 
-        {/* Timeline */}
-        <Panel title="📈 Lịch sử quét" badge={`${history.length} lần quét`}>
-          {areaData.length === 0 ? (
-            <div className="dash-empty">Chưa có dữ liệu.<br/>Hãy thực hiện quét đầu tiên ở trang Kiểm Tra Nội Dung.</div>
-          ) : (
-            <ResponsiveContainer width="100%" height={180}>
-              <AreaChart data={areaData} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
-                <defs>
-                  <linearGradient id="gSafe" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#10b981" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="gBlock" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#f43f5e" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 6" stroke="var(--border)" />
-                <XAxis dataKey="t" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <Tooltip content={<SiemTooltip />} />
-                <Area type="monotone" dataKey="safe"    name="An toàn"  stroke="#10b981" fill="url(#gSafe)"  strokeWidth={2} dot={{ r: 3, fill: '#10b981' }} />
-                <Area type="monotone" dataKey="blocked" name="Bị chặn"  stroke="#f43f5e" fill="url(#gBlock)" strokeWidth={2} dot={{ r: 3, fill: '#f43f5e' }} />
-              </AreaChart>
-            </ResponsiveContainer>
-          )}
-        </Panel>
+      {/* ── ANALYTICS ROW ───────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
 
-        {/* Pie */}
-        <Panel title="🥧 Phân bố kết quả" badge={`${stats.total} lần`}>
-          {pieData.length === 0 ? (
-            <div className="dash-empty">Chưa có dữ liệu</div>
-          ) : (
+        {/* Verdict donut */}
+        <div className="col-span-1 bg-white border border-gray-200/80 p-8 flex flex-col">
+          <h2 className="text-[0.65rem] font-bold text-gray-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+            <GitBranch size={13} strokeWidth={1.5} /> VERDICT DISTRIBUTION
+          </h2>
+
+          {analytics.hasData ? (
             <>
-              <ResponsiveContainer width="100%" height={160}>
-                <PieChart>
-                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={45} outerRadius={72} paddingAngle={3} dataKey="value" strokeWidth={0}>
-                    {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip content={<SiemTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="pie-legend">
-                {pieData.map((d, i) => (
-                  <div key={d.name} className="pie-legend__row">
-                    <span className="pie-legend__dot" style={{ background: PIE_COLORS[i] }} />
-                    <span className="pie-legend__name">{d.name}</span>
-                    <span className="pie-legend__val">{d.value}</span>
+              <div className="flex-1 min-h-[220px] relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={analytics.verdictData} cx="50%" cy="46%" innerRadius={72} outerRadius={95} paddingAngle={3} dataKey="value" stroke="none">
+                      {analytics.verdictData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-10">
+                  <span className="text-2xl font-black text-gray-900 tracking-tighter">{analytics.total}</span>
+                  <span className="text-[0.58rem] font-bold text-gray-400 uppercase tracking-widest">TOTAL SCANNED</span>
+                </div>
+              </div>
+              <div className="mt-2 flex flex-col gap-3">
+                {analytics.verdictData.map((item, i) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-1.5 h-1.5 rounded-sm" style={{ backgroundColor: item.color }} />
+                      <span className="text-[0.65rem] font-bold text-gray-600 uppercase tracking-widest">{item.name}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[0.65rem] font-mono font-bold text-gray-400">{item.value} req</span>
+                      <span className="text-[0.65rem] font-mono font-black text-gray-900">{item.pct}%</span>
+                    </div>
                   </div>
                 ))}
               </div>
             </>
-          )}
-        </Panel>
-
-        {/* Attack types */}
-        <Panel title="⚡ Loại tấn công" badge={`${wafEvents.length} sự kiện`}>
-          {typeData.length === 0 ? (
-            <div className="dash-empty">Chưa có sự kiện WAF</div>
           ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={typeData} layout="vertical" margin={{ top: 0, right: 10, bottom: 0, left: 10 }}>
-                <CartesianGrid strokeDasharray="3 6" stroke="var(--border)" horizontal={false} />
-                <XAxis type="number" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <YAxis type="category" dataKey="name" tick={{ fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'JetBrains Mono' }} axisLine={false} tickLine={false} width={90} />
-                <Tooltip content={<SiemTooltip />} />
-                <Bar dataKey="value" name="Số lần" fill="var(--red)" radius={[0,4,4,0]} barSize={14} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="flex-1 flex flex-col items-center justify-center text-gray-300 gap-3 min-h-[280px]">
+              <GitBranch size={28} strokeWidth={1} />
+              <p className="text-[0.65rem] font-bold uppercase tracking-widest text-gray-400">AWAITING SCAN DATA</p>
+              <p className="text-[0.6rem] text-gray-400 text-center">Sử dụng Extension để bắt đầu quét.<br />Dữ liệu sẽ cập nhật theo thời gian thực.</p>
+            </div>
           )}
-        </Panel>
+        </div>
 
-        {/* WAF events table */}
-        <Panel title="🚨 Sự kiện WAF gần đây" badge="Trực tiếp" className="panel--wide">
-          {recentEvents.length === 0 ? (
-            <div className="dash-empty">Chưa có sự kiện bị chặn trong phiên này.</div>
-          ) : (
-            <table className="event-table">
-              <thead>
-                <tr>
-                  <th>Thời gian</th>
-                  <th>Loại tấn công</th>
-                  <th>Layer</th>
-                  <th>Nội dung</th>
-                  <th>Trạng thái</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentEvents.map((e, i) => (
-                  <tr key={e.id || i}>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>{formatDateTime(e.timestamp)}</td>
-                    <td><span className={`atk-tag atk-tag--${attackTagClass(e.type)}`}>{e.type || 'UNKNOWN'}</span></td>
-                    <td style={{ color: 'var(--red)', fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}>WAF L1</td>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(e.payload || '').slice(0, 50)}</td>
-                    <td><span className="evt-status evt-status--blocked">Đã chặn</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </Panel>
+        {/* AI Confidence Distribution */}
+        <div className="col-span-1 lg:col-span-2 bg-white border border-gray-200/80 p-8 flex flex-col">
+          <h2 className="text-[0.65rem] font-bold text-gray-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+            <Brain size={13} strokeWidth={1.5} /> AI CONFIDENCE ANALYSIS
+          </h2>
 
-        {/* Architecture */}
-        <Panel title="🏗️ Kiến trúc bảo vệ" className="panel--wide">
-          <div className="pipe-arch">
-            {[
-              { tag: 'Layer 1', name: 'WAF Engine',   tech: 'ModSecurity — Rule-based',   color: 'var(--red)',   port: '8000', tags: ['SQLi','XSS','CMDi','LFI','RFI','URL đen'] },
-              { tag: 'Layer 2', name: 'FastText AI',  tech: 'N-gram Machine Learning',    color: 'var(--blue)',  port: '5001', tags: ['Phân loại lừa đảo','Xử lý OOV','Word Embeddings'] },
-              { tag: 'Layer 3', name: 'DistilBERT',   tech: 'Transformer Fine-tuned',     color: 'var(--amber)', port: '5002',  tags: ['Phân tích ngữ nghĩa','BERT','Deep NLP'] },
-            ].map((l, i, arr) => (
-              <React.Fragment key={l.tag}>
-                <div className="pipe-arch__block" style={{ '--c': l.color }}>
-                  <div className="pipe-arch__tag">{l.tag}</div>
-                  <div className="pipe-arch__body">
-                    <div className="pipe-arch__name">{l.name}</div>
-                    <div className="pipe-arch__tech">{l.tech}</div>
-                    <div className="pipe-arch__port">PORT: {l.port}</div>
-                    <div className="pipe-arch__tags">
-                      {l.tags.map(t => <span key={t} className="pipe-arch__chip">{t}</span>)}
+          {analytics.confTotal > 0 ? (
+            <div className="flex flex-col gap-6 flex-1">
+
+              {/* Avg conf + total */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="col-span-1 bg-gray-50 border border-gray-100 p-4 flex flex-col gap-1">
+                  <span className="text-[0.6rem] font-bold text-gray-400 uppercase tracking-widest">AVG CONFIDENCE</span>
+                  <span className="text-2xl font-black text-gray-900 tracking-tighter">{analytics.avgConf}</span>
+                  <span className="text-[0.58rem] text-gray-400">{analytics.confTotal} predictions analyzed</span>
+                </div>
+                <div className="col-span-2 grid grid-cols-3 gap-3">
+                  {[
+                    { label: 'DECISIVE', sub: '≥ 80% conf', val: analytics.confData[0]?.value ?? 0, pct: analytics.confData[0]?.pct ?? 0, accent: 'border-t-2 border-gray-900' },
+                    { label: 'UNCERTAIN', sub: '40–79% conf', val: analytics.confData[1]?.value ?? 0, pct: analytics.confData[1]?.pct ?? 0, accent: 'border-t-2 border-amber-500' },
+                    { label: 'LOW RISK', sub: '< 40% conf',  val: analytics.confData[2]?.value ?? 0, pct: analytics.confData[2]?.pct ?? 0, accent: 'border-t-2 border-emerald-500' },
+                  ].map(s => (
+                    <div key={s.label} className={`bg-gray-50 border border-gray-100 p-4 flex flex-col gap-1 ${s.accent}`}>
+                      <span className="text-[0.58rem] font-bold text-gray-400 uppercase tracking-widest">{s.label}</span>
+                      <span className="text-xl font-black text-gray-900 tracking-tighter">{s.val}</span>
+                      <span className="text-[0.58rem] text-gray-400">{s.pct}% · {s.sub}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Bar breakdown */}
+              <div className="flex flex-col gap-3 flex-1 justify-center">
+                {analytics.confData.map((row, i) => (
+                  <div key={i} className="flex flex-col gap-1.5">
+                    <div className="flex justify-between items-end">
+                      <span className="text-[0.62rem] font-bold text-gray-500 uppercase tracking-widest">{row.name}</span>
+                      <span className="text-[0.65rem] font-mono font-black text-gray-900">{row.value} <span className="text-gray-400 font-bold">({row.pct}%)</span></span>
+                    </div>
+                    <div className="h-2 w-full bg-gray-100 overflow-hidden rounded-sm">
+                      <div
+                        className="h-full transition-all duration-700 ease-out"
+                        style={{ width: `${row.pct}%`, backgroundColor: row.fill }}
+                      />
                     </div>
                   </div>
+                ))}
+              </div>
+
+              {/* HITL hint */}
+              {analytics.confData[1]?.value > 0 && (
+                <div className="mt-2 p-3 bg-amber-50 border border-amber-200/50 text-[0.62rem] font-bold text-amber-700 uppercase tracking-wider">
+                  {analytics.confData[1].value} CAS KHÔNG CHẮC CHẮN (40–79%) — XEM XÉT TẠI TRANG KIỂM ĐỊNH AI
                 </div>
-                {i < arr.length - 1 && (
-                  <div className="pipe-arch__arrow">
-                    <span>→</span>
-                    <span className="pipe-arch__arrow-label">PASS</span>
-                  </div>
-                )}
-              </React.Fragment>
-            ))}
-          </div>
-        </Panel>
+              )}
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-gray-300 gap-3 min-h-[220px]">
+              <Brain size={28} strokeWidth={1} />
+              <p className="text-[0.65rem] font-bold uppercase tracking-widest text-gray-400">NO PREDICTION DATA</p>
+              <p className="text-[0.6rem] text-gray-400 text-center">Biểu đồ phân tích độ tự tin AI sẽ hiện<br />khi Extension gửi kết quả quét về đây.</p>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Scan history */}
-      <Panel title="📋 Lịch sử quét" badge={`${history.length} bản ghi`}>
-        {history.length === 0 ? (
-          <div className="dash-empty">Chưa có lịch sử. Hãy vào Kiểm Tra Nội Dung để bắt đầu.</div>
-        ) : (
-          <table className="event-table">
-            <thead>
-              <tr>
-                <th>Thời gian</th>
-                <th>Kết quả</th>
-                <th>Nội dung</th>
-                <th>Độ tin cậy</th>
-              </tr>
-            </thead>
-            <tbody>
-              {history.slice(0, 8).map(h => {
-                const blockedWAF = h.result?.waf_blocked || h.result?.blocked;
-                const blockedFT  = h.result?.fasttext_blocked;
-                const dbRan      = h.result?.distilbert_blocked !== undefined;
-                const blockedDB  = h.result?.distilbert_blocked;
+      {/* ── OPERATIONAL ROW ─────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-                let status = 'safe';
-                if (blockedWAF) {
-                  status = 'blocked_waf';
-                } else if (dbRan) {
-                  status = blockedDB ? 'blocked_distilbert' : 'safe';
-                } else if (blockedFT) {
-                  status = 'blocked_fasttext';
-                }
-                const conf = h.result?.confidence;
-                return (
-                  <tr key={h.id}>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>{formatDateTime(h.timestamp)}</td>
-                    <td><ThreatBadge status={status} size="sm" /></td>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.text.slice(0, 70)}</td>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--blue)', fontWeight: 700 }}>{conf ? `${Math.round(conf * 100)}%` : '—'}</td>
+        {/* Pipeline */}
+        <div className="col-span-1">
+          <div className="bg-white border border-gray-200/80 p-8 h-full flex flex-col">
+            <h2 className="text-[0.65rem] font-bold text-gray-400 uppercase tracking-widest mb-8 flex items-center gap-2">
+              <Layers size={13} strokeWidth={1.5} /> INSPECTION PIPELINE
+            </h2>
+            <div className="flex-1 flex flex-col justify-center">
+              <PipelineNode label="Chrome Extension" port="CLIENT / BROWSER"  iconColor="text-indigo-500" />
+              <PipelineNode label="L1: WAF Engine"   port="PORT 8000"         iconColor="text-rose-500" />
+              <PipelineNode label="L2: FastText"     port="PORT 5001"         iconColor="text-amber-500" />
+              <PipelineNode label="L3: DistilBERT"   port="PORT 5002"         iconColor="text-indigo-400" isLast />
+            </div>
+          </div>
+        </div>
+
+        {/* Live logs */}
+        <div className="col-span-1 lg:col-span-2">
+          <div className="bg-white border border-gray-200/80 p-8 h-full flex flex-col">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-[0.65rem] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                <TerminalSquare size={13} strokeWidth={1.5} /> LIVE INTERCEPT LOGS
+              </h2>
+              {history.length > 0 && (
+                <span className="text-[0.6rem] font-mono font-bold text-gray-400">{history.length} RECORDS</span>
+              )}
+            </div>
+
+            <div className="overflow-x-auto flex-1">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-100 text-[0.65rem] uppercase tracking-widest text-gray-400 font-bold">
+                    <th className="pb-3 pr-4">Payload Snapshot</th>
+                    <th className="pb-3 px-4 text-center">Layer</th>
+                    <th className="pb-3 px-4 text-center">Confidence</th>
+                    <th className="pb-3 px-4 text-center">Verdict</th>
+                    <th className="pb-3 pl-4 text-right">Time</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </Panel>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {history.slice(0, 7).map((log, idx) => {
+                    const r     = log.result || {};
+                    const isWaf = r.blocked || r.waf_blocked;
+                    let layer = "UNKNOWN";
+                    if (r.layer_info) {
+                        layer = r.layer_info;
+                    } else {
+                        layer = isWaf ? 'WAF' : (r.distilbert_blocked !== undefined ? 'DISTILBERT' : 'FASTTEXT');
+                    }
+                    const status = (r.final_blocked || isWaf || r.fasttext_blocked || r.distilbert_blocked)
+                      ? (isWaf ? 'ATTACK' : 'SCAM')
+                      : 'SAFE';
+                      
+                    let confDisplay = '—';
+                    if (layer === 'TRUSTED_CITATION' || layer === 'TRUSTED_DOMAIN') {
+                        confDisplay = 'BYPASS';
+                    } else if (r.confidence != null) {
+                        confDisplay = Math.round(r.confidence * 100) + '%';
+                    }
+
+                    return (
+                      <tr key={log.id || idx} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="py-3.5 pr-4 max-w-[220px]">
+                          <span className="text-xs font-medium text-gray-700 truncate block" title={log.text}>{log.text}</span>
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <span className="text-[0.6rem] font-mono font-bold text-gray-400 tracking-widest">{layer}</span>
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <span className="text-[0.65rem] font-mono font-bold text-gray-500">{confDisplay}</span>
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <LogBadge status={status} />
+                        </td>
+                        <td className="py-3.5 pl-4 text-right">
+                          <span className="text-[0.65rem] text-gray-400 font-mono font-bold">
+                            {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                  {history.length === 0 && (
+                    <tr>
+                      <td colSpan="5" className="py-14 text-center">
+                        <Activity size={20} strokeWidth={1.25} className="text-gray-200 mx-auto mb-3" />
+                        <p className="text-[0.65rem] font-bold text-gray-400 uppercase tracking-widest">WAITING FOR TELEMETRY...</p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
-};
-
-export default Dashboard;
+}

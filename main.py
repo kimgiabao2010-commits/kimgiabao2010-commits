@@ -41,7 +41,9 @@ Pipeline xử lý tại POST /api/scan:
 
 import json
 import logging
+import re
 import time
+from urllib.parse import urlparse
 
 import httpx
 from fastapi import FastAPI, Request
@@ -66,16 +68,155 @@ logger = logging.getLogger("SWG-Orchestrator")
 # Cấu hình upstream AI servers
 # ---------------------------------------------------------------------------
 
-FASTTEXT_URL = "http://localhost:5001/predict"
+FASTTEXT_URL   = "http://localhost:5001/predict"
 DISTILBERT_URL = "http://localhost:5002/predict"
 
 # Ngưỡng phân loại: nếu confidence > HIGH_CONF_THRESHOLD → kết luận ngay
 HIGH_CONF_THRESHOLD = 0.75
-# Ngưỡng mập mờ dưới: nếu confidence < LOW_CONF_THRESHOLD → cũng kết luận ngay (chắc chắn ngược)
-LOW_CONF_THRESHOLD = 0.40
+# Ngưỡng mập mờ dưới: nếu confidence < LOW_CONF_THRESHOLD → cũng kết luận ngay
+LOW_CONF_THRESHOLD  = 0.40
 
 # Timeout cho mỗi lần gọi AI (giây)
 AI_TIMEOUT = 10.0
+
+# ---------------------------------------------------------------------------
+# LAYER 0 — TRUSTED DOMAIN WHITELIST
+# Các domain này được xác minh là nguồn tin uy tín.
+# Nội dung từ các trang này sẽ được bypass toàn bộ AI pipeline
+# (WAF rule-based vẫn chạy để chặn tấn công kỹ thuật).
+# ---------------------------------------------------------------------------
+
+TRUSTED_DOMAINS: set[str] = {
+    # ── Báo điện tử Việt Nam uy tín ────────────────────────────────────────
+    "vnexpress.net", "www.vnexpress.net",
+    "tuoitre.vn", "www.tuoitre.vn",
+    "thanhnien.vn", "www.thanhnien.vn",
+    "dantri.com.vn", "www.dantri.com.vn",
+    "nhandan.vn", "www.nhandan.vn",
+    "vietnamplus.vn", "www.vietnamplus.vn",
+    "baomoi.com", "www.baomoi.com",
+    "tienphong.vn", "www.tienphong.vn",
+    "laodong.vn", "www.laodong.vn",
+    "nld.com.vn", "www.nld.com.vn",
+    "vtv.vn", "www.vtv.vn",
+    "vov.vn", "www.vov.vn", "vov1.vn", "vov2.vn", "vov3.vn", "vov4.vn", "vov5.vn", "vov6.vn",
+    "zingnews.vn", "www.zingnews.vn",
+    "baochinhphu.vn", "www.baochinhphu.vn",
+    "sggp.org.vn", "www.sggp.org.vn",
+    "anninhthudo.vn", "www.anninhthudo.vn",
+    "plo.vn", "www.plo.vn",
+    "vtcnews.vn", "www.vtcnews.vn",
+    "soha.vn", "www.soha.vn",
+    "cafef.vn", "www.cafef.vn",
+    "cafebiz.vn", "www.cafebiz.vn",
+    "24h.com.vn", "www.24h.com.vn",
+    "kenh14.vn", "www.kenh14.vn",
+    "genk.vn", "www.genk.vn",
+    "ictnews.vn", "www.ictnews.vn",
+    "pcworld.com.vn", "www.pcworld.com.vn",
+
+    # ── Cơ quan Nhà nước / Chính phủ ───────────────────────────────────────
+    "gov.vn", "chinhphu.vn",
+    "mof.gov.vn", "moit.gov.vn", "moet.gov.vn",
+    "mps.gov.vn", "moha.gov.vn",
+    "bocongan.gov.vn",
+    "suckhoedoisong.vn", "moh.gov.vn",
+
+    # ── Ngân hàng / Tài chính chính thống ──────────────────────────────────
+    "vietcombank.com.vn",
+    "vietinbank.vn",
+    "bidv.com.vn",
+    "agribank.com.vn",
+    "tpbank.vn",
+    "mbbank.com.vn",
+    "techcombank.com.vn",
+    "acb.com.vn",
+    "vpbank.com.vn",
+    "sbv.gov.vn",
+    "ssi.com.vn",
+    "vndirect.com.vn",
+
+    # ── Giáo dục ───────────────────────────────────────────────────────────
+    "hust.edu.vn", "uet.vnu.edu.vn",
+    "hcmut.edu.vn", "uit.edu.vn",
+    "neu.edu.vn", "ueh.edu.vn",
+    "vnu.edu.vn", "dlu.edu.vn",
+    "udn.vn",
+    "moet.gov.vn",
+
+    # ── Nguồn quốc tế uy tín ───────────────────────────────────────────────
+    "wikipedia.org", "en.wikipedia.org", "vi.wikipedia.org",
+    "google.com", "www.google.com",
+    "youtube.com", "www.youtube.com",
+    "github.com", "www.github.com",
+    "stackoverflow.com",
+    "mozilla.org", "developer.mozilla.org",
+    "microsoft.com", "support.microsoft.com", "docs.microsoft.com",
+    "apple.com", "www.apple.com",
+    "bbc.com", "www.bbc.com",
+    "reuters.com", "www.reuters.com",
+    "apnews.com",
+    "who.int",
+    "un.org",
+    "python.org", "docs.python.org",
+    "npmjs.com",
+    "pypi.org",
+    "arxiv.org",
+    "scholar.google.com",
+}
+
+
+def extract_domain(url: str | None) -> str | None:
+    """Lấy domain thuần (không port, không path) từ URL."""
+    if not url:
+        return None
+    try:
+        parsed = urlparse(url if url.startswith("http") else f"https://{url}")
+        return parsed.netloc.lower().strip() or None
+    except Exception:
+        return None
+
+
+def is_trusted_domain(url: str | None) -> bool:
+    """Kiểm tra URL có thuộc trusted domain không."""
+    domain = extract_domain(url)
+    if not domain:
+        return False
+    # Khớp chính xác
+    if domain in TRUSTED_DOMAINS:
+        return True
+    # Khớp subdomain: abc.vnexpress.net → vnexpress.net
+    parts = domain.split(".")
+    for i in range(1, len(parts)):
+        parent = ".".join(parts[i:])
+        if parent in TRUSTED_DOMAINS:
+            return True
+    return False
+
+def has_trusted_citation(text: str) -> str | None:
+    """
+    Kiểm tra xem trong nội dung văn bản có trích dẫn nguồn uy tín không.
+    Ví dụ: "Nguồn: VOV2", "Theo VnExpress", "Nguồn: Báo Chính phủ"
+    Trả về tên nguồn nếu có, ngược lại trả về None.
+    """
+    if not text:
+        return None
+    
+    # Các pattern thường gặp khi trích dẫn báo chí
+    citations = [
+        r"(?:nguồn|theo)\s*:\s*(vov|vov1|vov2|vov3|vtv|vnexpress|tuổi trẻ|thanh niên|dân trí|nhân dân|vietnamnet|báo chính phủ|chinhphu\.vn)",
+        r"(?:nguồn|theo)\s+(báo\s+)?(vov|vtv|vnexpress|tuổi trẻ|thanh niên|dân trí|nhân dân|vietnamnet|chính phủ)",
+    ]
+    
+    text_lower = text.lower()
+    for pattern in citations:
+        match = re.search(pattern, text_lower)
+        if match:
+            # Lấy tên nguồn cụ thể đã match
+            source = match.group(1) if match.lastindex == 1 else match.group(2)
+            return source.upper() if source else "TRUSTED_SOURCE"
+            
+    return None
 
 # ---------------------------------------------------------------------------
 # Schema
@@ -83,11 +224,15 @@ AI_TIMEOUT = 10.0
 
 class ScanRequest(BaseModel):
     text: str
+    url: str | None = None   # URL trang nguồn (gửi từ Extension) — dùng cho Trusted Domain check
 
     model_config = {
         "json_schema_extra": {
             "examples": [
-                {"text": "Chúc mừng! Bạn đã trúng thưởng 50 triệu đồng!"},
+                {
+                    "text": "Chúc mừng! Bạn đã trúng thưởng 50 triệu đồng!",
+                    "url": "https://example-scam.com/win",
+                },
             ]
         }
     }
@@ -187,15 +332,49 @@ async def waf_middleware(request: Request, call_next):
 @app.post("/api/scan")
 async def api_scan(body: ScanRequest, request: Request):
     """
-    Orchestrator Pipeline:
+    Orchestrator Pipeline (4 lớp):
+      0. TRUSTED DOMAIN → bypass toàn bộ AI nếu domain thuộc whitelist
       1. WAF đã CLEAN (qua middleware) → gọi FastText
       2. FastText rõ ràng (>0.75 hoặc <0.40) → trả kết quả ngay
       3. FastText mập mờ (0.40-0.75) → escalate sang DistilBERT
     """
     t_start = time.monotonic()
     text = body.text
+    url  = body.url
 
-    # ── Layer 2: Gọi FastText Server ────────────────────────────────────────
+    # ── LAYER 0: Trusted Domain / Citation Bypass ──────────────────────────
+    
+    # 1. Kiểm tra URL (nếu extension gửi lên)
+    if is_trusted_domain(url):
+        domain = extract_domain(url)
+        latency = round((time.monotonic() - t_start) * 1000, 2)
+        logger.info("Layer 0 TRUSTED DOMAIN BYPASS: %s → SAFE", domain)
+        return {
+            "status": "SUCCESS",
+            "layer": "TRUSTED_DOMAIN",
+            "label": "Safe",
+            "score": 1.0,
+            "latency_ms": latency,
+            "detail": f"Domain ‘{domain}’ nằm trong danh sách nguồn tin cậy. Bỏ qua AI pipeline.",
+            "trusted_domain": domain,
+        }
+        
+    # 2. Kiểm tra Trích dẫn nguồn trong đoạn text (Nguồn: VOV2, v.v.)
+    cited_source = has_trusted_citation(text)
+    if cited_source:
+        latency = round((time.monotonic() - t_start) * 1000, 2)
+        logger.info("Layer 0 TRUSTED CITATION BYPASS: %s → SAFE", cited_source)
+        return {
+            "status": "SUCCESS",
+            "layer": "TRUSTED_CITATION",
+            "label": "Safe",
+            "score": 1.0,
+            "latency_ms": latency,
+            "detail": f"Văn bản có trích dẫn nguồn uy tín ({cited_source}). Bỏ qua AI pipeline.",
+            "trusted_citation": cited_source,
+        }
+
+    # ── Layer 2: Gọi FastText Server ─────────────────────────────────────────
     fasttext_result = None
     try:
         async with httpx.AsyncClient(timeout=AI_TIMEOUT) as client:
