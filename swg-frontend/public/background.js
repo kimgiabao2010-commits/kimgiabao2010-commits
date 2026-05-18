@@ -87,9 +87,30 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
             body: JSON.stringify({ text: details.url, url: details.url })
         });
         const result = await response.json();
+        
+        let isMalicious = false;
         if (result.status === "BLOCKED_BY_WAF" || result.label === "Scam") {
             console.warn("🚨 WAF ĐÃ CHẶN URL NÀY:", details.url);
+            isMalicious = true;
         }
+
+        let aiData = { 
+            fasttext: result.fasttext || null, 
+            distilbert: result.distilbert || null,
+            layer: result.layer || "WAF",
+            detail: result.detail || ""
+        };
+
+        // Gửi log URL Scan về Dashboard
+        chrome.tabs.query({ url: "http://localhost:5173/*" }, (tabs) => {
+            tabs.forEach(t => {
+                chrome.tabs.sendMessage(t.id, {
+                    action: "dashboard_log",
+                    data: { text: `[URL SCAN] ${details.url}`, aiData: aiData, isMalicious: isMalicious }
+                });
+            });
+        });
+
     } catch (e) {
         // Server WAF có thể đang tắt — im lặng
     }
