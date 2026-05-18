@@ -25,3 +25,5 @@ dist/
 temp_owasp_crs/
 *.h5
 *.bin
+*.safetensors
+*.csv
