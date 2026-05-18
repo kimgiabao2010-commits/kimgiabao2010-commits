@@ -3,6 +3,7 @@ from flask_cors import CORS
 import fasttext
 import re
 import sys
+import threading
 
 # Fix Windows console encoding
 if sys.platform == 'win32':
@@ -14,6 +15,9 @@ FASTTEXT_MODEL_FILE = 'scam_detector_distilbert/scam_detector_model_fasttext.bin
 # --- KHỞI TẠO FLASK APP ---
 app = Flask(__name__)
 CORS(app)
+
+# Lock để bảo vệ model khi reload (thread-safe)
+_model_lock = threading.Lock()
 
 # --- HÀM TIỀN XỬ LÝ TEXT (PHẢI GIỐNG VỚI main_fasttext.py) ---
 def preprocess_text(text):
@@ -59,8 +63,9 @@ def predict():
         if not processed_text:
             return jsonify({'error': 'Tin nhắn không hợp lệ sau xử lý.'}), 400
         
-        # 3. Dự đoán với FastText
-        predictions = model.predict(processed_text, k=2)  # Lấy top 2 predictions
+        # 3. Dự đoán với FastText (thread-safe với lock)
+        with _model_lock:
+            predictions = model.predict(processed_text, k=2)  # Lấy top 2 predictions
         
         # Parse kết quả
         label = predictions[0][0].replace('__label__', '').capitalize()
@@ -87,6 +92,33 @@ def predict():
     except Exception as e:
         print(f"Lỗi khi xử lý dự đoán: {e}")
         return jsonify({'error': f'Lỗi server khi xử lý dữ liệu: {str(e)}'}), 500
+
+# --- ENDPOINT HOT-RELOAD MODEL (dùng bởi retrain_pipeline.py) ---
+@app.route('/reload', methods=['POST'])
+def reload_model():
+    """
+    Nạp lại FastText model từ disk mà không cần restart server.
+    Được gọi tự động bởi retrain_pipeline.py sau mỗi lần retrain.
+    Thread-safe: dùng _model_lock để bảo vệ trong quá trình swap model.
+    """
+    global model
+    print(f" Nhận yêu cầu reload model từ: {FASTTEXT_MODEL_FILE}")
+    try:
+        new_model = fasttext.load_model(FASTTEXT_MODEL_FILE)
+        with _model_lock:
+            model = new_model
+        print(" Model đã được reload thành công (hot-reload).")
+        return jsonify({
+            'status': 'ok',
+            'message': 'FastText model đã được nạp lại thành công.',
+            'model_file': FASTTEXT_MODEL_FILE,
+        }), 200
+    except Exception as e:
+        print(f" LỖI khi reload model: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Không thể reload model: {str(e)}',
+        }), 500
 
 # --- ENDPOINT ĐỂ KIỂM TRA SERVER ---
 @app.route('/health', methods=['GET'])

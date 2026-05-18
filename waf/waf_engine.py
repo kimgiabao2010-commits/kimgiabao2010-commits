@@ -6,6 +6,7 @@ Core Logic — WafEngine class.
 
 from __future__ import annotations
 
+import html
 import re
 import urllib.parse
 from typing import Optional
@@ -67,16 +68,16 @@ class WafEngine:
     def normalize_payload(text: str) -> str:
         """
         Chuẩn hóa payload để vô hiệu hóa các kỹ thuật bypass phổ biến.
-        Bắt buộc 4 việc:
-        1. Giải mã URL Encoding (kể cả double encoding) và Unicode.
-        2. Xóa bỏ ký tự Null Byte (%00, \\x00).
-        3. Xóa bỏ các comment SQL (/*...*/, --).
-        4. Gộp nhiều khoảng trắng, tab, newline thành 1 space duy nhất.
+        Thực hiện đầy đủ 4 bước theo yêu cầu kiến trúc SWG:
+        1. Giải mã URL Encoding vòng lặp (chống double/triple encoding) + Unicode escape.
+        2. Chuyển toàn bộ về chữ thường (.lower()) để match case-insensitive.
+        3. Giải mã HTML Entities (&lt; → <, &#x27; → ', v.v.).
+        4. Xóa Null Byte, comment SQL, thu gọn khoảng trắng thừa thành 1 space.
         """
         if not isinstance(text, str):
             text = str(text)
 
-        # Bước 1: Giải mã URL Encoding (Multi-pass phá double encoding)
+        # Bước 1: Giải mã URL Encoding (Multi-pass phá double/triple encoding)
         try:
             prev = None
             while prev != text:
@@ -85,22 +86,31 @@ class WafEngine:
         except Exception:
             pass
 
-        # Bước 1b: Giải mã Unicode escape
+        # Bước 1b: Giải mã Unicode escape (\u0041 → A, \x3c → <)
         try:
             if "\\u" in text or "\\x" in text:
                 text = text.encode("raw_unicode_escape").decode("unicode_escape")
         except Exception:
             pass
 
-        # Bước 2: Xóa bỏ ký tự Null Byte (%00, \\x00)
+        # Bước 2: Chuyển về chữ thường — chuẩn hóa case cho regex matching
+        text = text.lower()
+
+        # Bước 3: Giải mã HTML Entities (&lt; &gt; &amp; &#x27; &#60; …)
+        try:
+            text = html.unescape(text)
+        except Exception:
+            pass
+
+        # Bước 4a: Xóa bỏ ký tự Null Byte (%00, \x00)
         text = text.replace('\x00', '')
         text = text.replace('%00', '')
 
-        # Bước 3: Xóa bỏ các comment SQL
+        # Bước 4b: Xóa bỏ các comment SQL (/*...*/ và --comment)
         text = re.sub(r"/\*.*?\*/", " ", text, flags=re.DOTALL)
         text = re.sub(r"(?<![:/])--[^\r\n]*", " ", text)
 
-        # Bước 4: Gộp nhiều khoảng trắng, tab, newline thành 1 space duy nhất
+        # Bước 4c: Thu gọn tab, newline, nhiều space thành 1 khoảng trắng duy nhất
         text = re.sub(r"\s+", " ", text)
 
         return text.strip()
