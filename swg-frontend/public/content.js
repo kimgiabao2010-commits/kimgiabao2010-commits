@@ -29,88 +29,98 @@ function injectStyles() {
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         
         .swg-banner-wrapper {
-            position: fixed; top: 0; left: 0; width: 100%;
+            position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 800px;
             z-index: 2147483647;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-            display: flex; flex-direction: column; align-items: center;
-            padding: 16px 24px;
-            animation: swg-slide-down 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            background-color: #0f172a; /* slate-900 */
+            color: #f8fafc; /* slate-50 */
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            display: flex; flex-direction: column;
+            padding: 20px 24px;
+            animation: swg-fade-in 0.3s ease-out forwards;
+            border: 1px solid #334155; /* slate-700 */
+            border-radius: 8px;
             box-sizing: border-box;
         }
         
         .swg-banner-safe {
-            background-color: rgba(16, 185, 129, 0.95); /* emerald-500 */
-            color: #ffffff;
+            border-left: 4px solid #10b981; /* emerald-500 */
         }
         
         .swg-banner-scam {
-            background-color: rgba(225, 29, 72, 0.95); /* rose-600 */
-            color: #ffffff;
+            border-left: 4px solid #e11d48; /* rose-600 */
         }
 
         .swg-banner-header {
-            display: flex; align-items: center; gap: 10px;
-            font-size: 16px; font-weight: 700;
-            letter-spacing: 0.02em; margin-bottom: 12px;
+            display: flex; justify-content: space-between; align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .swg-banner-title {
+            font-size: 14px; font-weight: 700;
+            letter-spacing: 0.05em; text-transform: uppercase;
+        }
+        
+        .swg-text-safe { color: #10b981; }
+        .swg-text-scam { color: #e11d48; }
+
+        .swg-banner-meta {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 11px; color: #64748b; /* slate-500 */
+            letter-spacing: 0.05em;
         }
 
         .swg-banner-content {
-            background-color: rgba(0, 0, 0, 0.2);
-            padding: 12px 18px; border-radius: 8px;
-            font-size: 13px; font-weight: 400; line-height: 1.5;
-            max-width: 800px; width: 100%; text-align: center;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background-color: #1e293b; /* slate-800 */
+            padding: 12px 16px; border-radius: 6px;
+            font-size: 13px; font-weight: 400; line-height: 1.6;
+            color: #cbd5e1; /* slate-300 */
+            border: 1px solid #334155;
             margin-bottom: 16px; box-sizing: border-box;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+            border-left: 2px solid #475569;
         }
         
         .swg-banner-actions {
-            display: flex; gap: 12px;
+            display: flex; gap: 12px; justify-content: flex-end;
         }
 
         .swg-btn {
-            padding: 8px 20px; border-radius: 6px;
-            font-size: 13px; font-weight: 600;
+            padding: 8px 16px; border-radius: 4px;
+            font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
             cursor: pointer; transition: all 0.2s ease;
             border: none; outline: none; font-family: inherit;
         }
 
         .swg-btn-primary-scam {
-            background-color: #ffffff; color: #e11d48;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background-color: #e11d48; color: #ffffff;
         }
         .swg-btn-primary-scam:hover {
-            background-color: #ffe4e6; transform: translateY(-1px);
+            background-color: #be123c;
         }
 
         .swg-btn-outline {
-            background-color: rgba(255, 255, 255, 0.1); color: #ffffff;
-            border: 1px solid rgba(255, 255, 255, 0.4);
+            background-color: transparent; color: #94a3b8;
+            border: 1px solid #475569;
         }
         .swg-btn-outline:hover {
-            background-color: rgba(255, 255, 255, 0.2);
-            border-color: #ffffff;
+            background-color: #1e293b; color: #f8fafc; border-color: #64748b;
         }
 
         .swg-admin-note {
-            font-size: 13px; margin-bottom: 16px; opacity: 0.9;
-            background: rgba(0,0,0,0.1); padding: 8px 16px; border-radius: 6px;
-            border-left: 3px solid rgba(255,255,255,0.5);
+            font-size: 13px; margin-bottom: 16px; color: #94a3b8;
+            background: #1e293b; padding: 10px 16px; border-radius: 6px;
+            border-left: 2px solid #3b82f6; /* blue-500 */
         }
 
-        @keyframes swg-slide-down {
-            from { transform: translateY(-100%); }
-            to { transform: translateY(0); }
+        @keyframes swg-fade-in {
+            from { opacity: 0; transform: translate(-50%, -20px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
         }
     `;
     document.head.appendChild(style);
 }
 
-// Hàm vẽ banner khi văn bản An Toàn
 function drawSuccessBanner(text, layer) {
     injectStyles();
     const oldBanner = document.getElementById("swg-warning-banner");
@@ -120,22 +130,27 @@ function drawSuccessBanner(text, layer) {
     banner.id = "swg-warning-banner";
     banner.className = "swg-banner-wrapper swg-banner-safe";
 
-    let msg = "Không phát hiện dấu hiệu lừa đảo.";
+    let msg = "ANALYSIS COMPLETE: NO THREAT DETECTED";
+    let detail = "System cleared the payload.";
     if (layer === "TRUSTED_CITATION") {
-        msg = "Văn bản trích dẫn Nguồn Báo chí Uy tín. Bỏ qua phân tích AI.";
+        detail = "Bypassed AI analysis: Payload contains trusted media citation.";
     } else if (layer === "TRUSTED_DOMAIN") {
-        msg = "Trang web thuộc Danh sách Nguồn tin cậy. Bỏ qua phân tích AI.";
+        detail = "Bypassed AI analysis: Origin domain is whitelisted.";
     }
 
     let previewText = text.length > 150 ? text.substring(0, 150) + '...' : text;
 
     banner.innerHTML = `
-        <div class="swg-banner-header">✅ <span>PHÂN TÍCH AN TOÀN:</span> <span style="font-weight: 500">${msg}</span></div>
+        <div class="swg-banner-header">
+            <div class="swg-banner-title swg-text-safe">${msg}</div>
+            <div class="swg-banner-meta">STATUS: SAFE</div>
+        </div>
+        <div style="font-size: 13px; color: #94a3b8; margin-bottom: 12px;">${detail}</div>
         <div class="swg-banner-content">
-            <span style="font-style: italic; opacity: 0.9">"${previewText}"</span>
+            <span style="font-style: italic;">"${previewText}"</span>
         </div>
         <div class="swg-banner-actions">
-            <button id="swg-close-btn" class="swg-btn swg-btn-outline">Đóng lại</button>
+            <button id="swg-close-btn" class="swg-btn swg-btn-outline">DISMISS</button>
         </div>
     `;
     
@@ -147,7 +162,7 @@ function drawSuccessBanner(text, layer) {
         if (document.getElementById("swg-warning-banner")) {
             document.getElementById("swg-warning-banner").remove();
         }
-    }, 6000);
+    }, 5000);
 }
 
 function drawWarningBanner(text, aiData) {
@@ -160,22 +175,26 @@ function drawWarningBanner(text, aiData) {
     banner.className = "swg-banner-wrapper swg-banner-scam";
     
     let ftConf = aiData.fasttext ? (aiData.fasttext.confidence * 100).toFixed(1) : 0;
-    let textHTML = `🚨 <span>CẢNH BÁO:</span> <span style="font-weight: 500">Phát hiện nội dung ĐỘC HẠI! (FastText: ${ftConf}%)</span>`;
+    let detail = `AI Confidence - FastText: ${ftConf}%`;
     
     if (aiData.distilbert) {
-        textHTML = `🚨 <span>CẢNH BÁO:</span> <span style="font-weight: 500">Phát hiện nội dung ĐỘC HẠI! (FastText: ${ftConf}% | DistilBERT: ${aiData.distilbert.confidence_score.toFixed(1)}%)</span>`;
+        detail += ` | DistilBERT: ${aiData.distilbert.confidence_score.toFixed(1)}%`;
     }
 
     let previewText = text.length > 200 ? text.substring(0, 200) + '...' : text;
 
     banner.innerHTML = `
-        <div class="swg-banner-header">${textHTML}</div>
+        <div class="swg-banner-header">
+            <div class="swg-banner-title swg-text-scam">SECURITY ALERT: MALICIOUS CONTENT DETECTED</div>
+            <div class="swg-banner-meta">STATUS: SCAM</div>
+        </div>
+        <div style="font-size: 13px; color: #94a3b8; margin-bottom: 12px; font-family: monospace;">${detail}</div>
         <div class="swg-banner-content">
-            <span style="font-style: italic; opacity: 0.9">"${previewText}"</span>
+            <span style="font-style: italic;">"${previewText}"</span>
         </div>
         <div class="swg-banner-actions">
-            <button id="swg-report-btn" class="swg-btn swg-btn-primary-scam">Báo cáo nghi ngờ AI sai</button>
-            <button id="swg-close-btn" class="swg-btn swg-btn-outline">Đóng cảnh báo</button>
+            <button id="swg-close-btn" class="swg-btn swg-btn-outline">DISMISS</button>
+            <button id="swg-report-btn" class="swg-btn swg-btn-primary-scam">REPORT FALSE POSITIVE</button>
         </div>
     `;
     
@@ -241,36 +260,42 @@ function drawVerdictBanner(verdict, adminNote) {
 
     const isScam  = verdict === "scam";
     const title   = isScam
-        ? "ADMIN XÁC NHẬN: NỘI DUNG LỪA ĐẢO!"
-        : "ADMIN XÁC NHẬN: NỘI DUNG AN TOÀN";
+        ? "ADMIN VERDICT: MALICIOUS CONTENT"
+        : "ADMIN VERDICT: CONTENT IS SAFE";
 
     const banner = document.createElement("div");
     banner.id = "swg-verdict-banner";
-    banner.className = \`swg-banner-wrapper \${isScam ? 'swg-banner-scam' : 'swg-banner-safe'}\`;
+    banner.className = `swg-banner-wrapper ${isScam ? 'swg-banner-scam' : 'swg-banner-safe'}`;
 
     const noteHTML = adminNote
-        ? \`<div class="swg-admin-note">
-               💬 Ghi chú của Admin: "\${adminNote}"
-           </div>\`
+        ? `<div class="swg-admin-note">
+               <strong>ADMIN NOTE:</strong> "${adminNote}"
+           </div>`
         : "";
 
     if (isScam) {
-        banner.innerHTML = \`
-            <div class="swg-banner-header">🚨 <span>\${title}</span></div>
-            \${noteHTML}
+        banner.innerHTML = `
+            <div class="swg-banner-header">
+                <div class="swg-banner-title swg-text-scam">${title}</div>
+                <div class="swg-banner-meta">STATUS: BLOCKED</div>
+            </div>
+            ${noteHTML}
             <div class="swg-banner-actions">
-                <button id="swg-verdict-block" class="swg-btn swg-btn-primary-scam">🚫 Chặn trang này</button>
-                <button id="swg-verdict-allow" class="swg-btn swg-btn-outline">✋ Bỏ qua cảnh báo</button>
+                <button id="swg-verdict-block" class="swg-btn swg-btn-primary-scam">ENFORCE BLOCK</button>
+                <button id="swg-verdict-allow" class="swg-btn swg-btn-outline">BYPASS ALERTS</button>
             </div>
-        \`;
+        `;
     } else {
-        banner.innerHTML = \`
-            <div class="swg-banner-header">✅ <span>\${title}</span></div>
-            \${noteHTML}
-            <div style="font-size:13px; margin-top:4px; opacity:0.85;">
-                Banner này sẽ tự đóng sau 5 giây...
+        banner.innerHTML = `
+            <div class="swg-banner-header">
+                <div class="swg-banner-title swg-text-safe">${title}</div>
+                <div class="swg-banner-meta">STATUS: RESOLVED</div>
             </div>
-        \`;
+            ${noteHTML}
+            <div style="font-size:12px; margin-top:4px; color: #64748b;">
+                System will auto-dismiss in 5 seconds...
+            </div>
+        `;
     }
 
     document.body.appendChild(banner);
