@@ -1,0 +1,69 @@
+{
+  "_comment": "SWG WAF Rules - Hot-Reload supported via POST /api/waf/reload",
+  "_version": "4.0.0",
+  "OWASP_LFI": [
+    "(?:^|/|\\\\|\\.\\.)\\.\\.{1,2}(?:/|\\\\|%2f|%5c)",
+    "/etc/(?:passwd|shadow|group|hosts|issue|motd|fstab|crontab)",
+    "/var/(?:log|adm|spool)/",
+    "/proc/(?:self|sys|net|cpuinfo|meminfo|version|mounts)",
+    "/(?:dev|sys|usr/lib)/",
+    "windows/(?:win\\.ini|system32/|repair/sam|panther/)",
+    "(?:boot\\.ini|autoexec\\.bat|config\\.sys)",
+    "(?:file|zip|zlib|bzip2|glob|ogg|phar|rar)://",
+    "php://(?:filter|input|stdin|memory|temp)",
+    "%00|\\x00"
+  ],
+  "OWASP_RFI": [
+    "^(?:file|ftps?|https?)://(?:\\[?[0-9a-f]+:[0-:a-f]+\\]?|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})",
+    "(?:\\binclude\\s*\\([^\\)]*|mosConfig_absolute_path|_(?:CONF\\[path|SERVER\\[DOCUMENT_ROOT))=(?:file|ftps?|https?)://",
+    "(?:^|[\\s\"'=,\\(])(?:url|jar):(?:ftp|https?)://",
+    "(?:expect|data|dict|gopher|ldap|tftp|ssrf)://",
+    "^(?:file|ftps?|https?).*?\\?+$"
+  ],
+  "OWASP_RCE": [
+    "\\b(?:whoami|uname|ifconfig|ipconfig|netstat|ping|traceroute|nslookup|dig|arp)\\b",
+    "\\b(?:curl|wget|fetch|lwp-download|lwp-request|nc|netcat|nmap|socat)\\b",
+    "\\b(?:bash|sh|csh|tcsh|zsh|dash|ash|ksh|powershell|pwsh|cmd)\\s*(?:-i|-c|-e|-Command)",
+    "\\b(?:python(?:2|3)?|perl|ruby|php|awk|sed)\\s*(?:-e|-r|-c)",
+    "\\b(?:system|exec|passthru|shell_exec|popen|proc_open|eval|assert|create_function|call_user_func)\\s*\\(",
+    "/dev/(?:tcp|udp)/[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}/[0-9]{1,5}",
+    "\\b(?:chmod|chown|chgrp|rm\\s+-rf|mv\\s+.*?/tmp)\\b",
+    "(?:;|&&|\\|\\||\\||\\n|\\r)\\s*(?:whoami|id|uname|ifconfig|ipconfig|netstat|ping|curl|wget)\\b",
+    "`\\s*(?:whoami|id|uname|ifconfig|ipconfig|netstat|ping|curl|wget)\\s*`",
+    "\\$\\(\\s*(?:whoami|id|uname|ifconfig|ipconfig|netstat|ping|curl|wget)\\s*\\)"
+  ],
+  "OWASP_XSS": [
+    "<\\s*script[^>]*>[\\s\\S]*?(?:<\\s*/\\s*script\\s*>|$)",
+    "<\\s*script[^>]*>",
+    "(?:javascript|vbscript|data|jscript):",
+    "\\bon(?:error|load|click|mouseover|focus|blur|hashchange|submit|keydown|keyup|keypress|mouseenter|mouseleave|change|abort)\\s*=",
+    "<\\s*(?:iframe|object|embed|applet|meta|svg|base|link|style)[^>]*>",
+    "\\bdocument\\.(?:cookie|location|write|URL|documentURI|domain)\\b",
+    "\\bwindow\\.(?:location|name|eval|setTimeout|setInterval)\\b",
+    "\\b(?:eval|alert|prompt|confirm|atob|btoa)\\s*\\(",
+    "expression\\s*\\(",
+    "url\\s*\\(\\s*['\"]?(?:javascript|data):"
+  ],
+  "OWASP_SQLi": [
+    "\\b(?:select\\b.{1,40}\\bfrom\\b|union\\b.{1,15}\\bselect\\b|insert\\b.{1,15}\\binto\\b|update\\b.{1,40}\\bset\\b|delete\\b.{1,15}\\bfrom\\b)",
+    "(?:'[\\s\\x0b]*)?(?:union[\\s\\x0b]+(?:all[\\s\\x0b]+)?select|order[\\s\\x0b]+by)[\\s\\x0b]+",
+    "(?:'[\\s\\x0b]*|\\b)(?:or|and)[\\s\\x0b]+(?:'[^']*'[\\s\\x0b]*=[\\s\\x0b]*'|[0-9]+[\\s\\x0b]*=[\\s\\x0b]*[0-9]|[0-9]+[\\s\\x0b]*--)",
+    ";[\\s\\x0b]*\\b(?:drop|truncate|delete|insert|update|alter|create)\\b",
+    "\\b(?:information_schema|pg_catalog|mysql\\.db|sysobjects|sysdatabases|sqlite_master)\\b",
+    "\\b(?:sleep|benchmark|waitfor\\s+delay|pg_sleep)\\s*\\(",
+    "\\b(?:concat|concat_ws|group_concat|substring|substr|mid|ascii|hex|bin|char)\\s*\\(",
+    "\\b(?:exec(?:ute)?|xp_cmdshell|sp_executesql)\\b",
+    "into\\s+(?:outfile|dumpfile)",
+    "[\\s\\x0b\\(\\)]case[\\s\\x0b]+when.*?then",
+    "select.*?having[\\s\\x0b]*?[^\\s\\x0b]+",
+    "/\\*!\\d{5}.*?\\*/"
+  ],
+  "MALICIOUS_URL_PATTERNS": [
+    "https?://(?:www\\.)?(?:bit\\.ly|tinyurl\\.com|t\\.co|ow\\.ly|goo\\.gl|rb\\.gy|is\\.gd|shorturl\\.at|cutt\\.ly|tiny\\.cc|s\\.id|v\\.gd|shorte\\.st|adf\\.ly|linktr\\.ee|buff\\.ly|trib\\.al|su\\.pr|snip\\.ly|bl\\.ink|lnkd\\.in|bcool\\.bz|bit\\.do|lc\\.cx|q\\.gs|1url\\.com|2\\.gp|4sq\\.com|clck\\.ru|filoops\\.info|redd\\.it|yourls\\.org|po\\.st|2u\\.pw|zi\\.ma|bc\\.vc)(?:/[^\\s]*)?",
+    "https?://(?:[a-z0-9-]*\\.)*xn--[a-z0-9-]+\\.[a-z]{2,}",
+    "https?://[^\\s/]*[^\\x00-\\x7F][^\\s/]*(?:\\.[a-z]{2,})+",
+    "https?://[^\\s/]+/[^\\s]*(?:login[\\-_]?verify|account[\\-_]?update|secure[\\-_]?signin|banking[\\-_]?auth|verify[\\-_]?identity|confirm[\\-_]?payment|password[\\-_]?reset[\\-_]?confirm|two[\\-_]?factor[\\-_]?auth|security[\\-_]?check[\\-_]?required|unlock[\\-_]?account|suspended[\\-_]?account|urgent[\\-_]?action[\\-_]?required|apple[\\-_]?id[\\-_]?locked|paypal[\\-_]?resolution|netflix[\\-_]?billing)[^\\s]*",
+    "https?://(?:[a-z0-9-]+\\.)+(?:paypal|apple|google|facebook|microsoft|amazon|netflix|bankofamerica|wellsfargo|chase|citibank|hsbc|techcombank|vietcombank|bidv|vpbank|mbbank|acb|sacombank|tpbank)\\.[a-z]{2,}\\.(?!(?:com|org|net|vn|io|co)\\b)",
+    "https?://(?:\\d{1,3}\\.){3}\\d{1,3}(?::\\d{1,5})?(?:/[^\\s]*)?"
+  ]
+}

@@ -1,55 +1,57 @@
 """
-main.py
--------
-Centralized SWG Gateway Orchestrator — 4-Layer Architecture.
+main.py — SWG Shield v4.0 (Code Freeze)
+=========================================
+Enterprise upgrades applied:
+  • Task 1 : TTLCache (cachetools) + Rate Limiting (slowapi) 60 req/min/IP
+  • Task 2 : Zero-Trust — X-API-Key header validation on /api/scan
+  • Task 3 : WAF hot-reload via POST /api/waf/reload (zero downtime)
+  • Env-var-aware upstream URLs (FASTTEXT_URL / DISTILBERT_URL)
 
-Pipeline xử lý tại POST /api/scan:
-    ┌──────────────────────────────────────────────────────────────────┐
-    │  REQUEST từ Chrome Extension                                     │
-    └─────────────────────────┬────────────────────────────────────────┘
-                              │
-                    ┌─────────▼──────────┐
-                    │  Layer 1: WAF      │  waf_middleware (rule-based,
-                    │  (waf_engine)      │  normalize_payload anti-bypass)
-                    └─────────┬──────────┘
-                   BLOCKED    │  CLEAN
-                    ◄──────   │
-               HTTP 403       │
-          BLOCKED_BY_WAF      ▼
-                    ┌─────────────────────┐
-                    │  Layer 2: FastText  │  POST http://localhost:5001/predict
-                    │  (ngữ nghĩa nhanh)  │
-                    └─────────┬───────────┘
-                              │
-               ┌──────────────┼──────────────────┐
-          confidence          │              confidence
-          > 0.75              │              0.4 – 0.75
-          (rõ ràng)           │              (mập mờ)
-               │              │                   │
-               ▼              │                   ▼
-          Trả về kết          │         ┌──────────────────────┐
-          quả ngay            │         │  Layer 3: DistilBERT  │
-                              │         │  (phân tích sâu)      │
-                              │         └──────────┬───────────┘
-                              │                    │
-                              └────────────────────┘
-                                         │
-                                         ▼
-                             JSON tổng hợp: layer, label,
-                             score, latency
+Pipeline POST /api/scan:
+  ┌────────────────────────────────────────────────────────────────┐
+  │  Rate Limiter (SlowAPI)  →  X-API-Key Guard  →  TTL Cache     │
+  └──────────────────────────────────┬─────────────────────────────┘
+                                     │ cache miss
+                            ┌────────▼──────────┐
+                            │  Layer 1: WAF      │  (waf_middleware)
+                            └────────┬──────────┘
+                           BLOCKED   │  CLEAN
+                            ◄──────  │
+                        HTTP 403     ▼
+                            ┌─────────────────────┐
+                            │  Layer 0: Trusted    │  domain / citation bypass
+                            └────────┬────────────┘
+                                     │  unknown
+                            ┌────────▼────────────┐
+                            │  Layer 2: FastText   │  POST :5001/predict
+                            └────────┬────────────┘
+                         clear│      │ambiguous
+                              │      ▼
+                              │  ┌───────────────────┐
+                              │  │ Layer 3: DistilBERT│  POST :5002/predict
+                              │  └────────┬──────────┘
+                              └───────────┘
+                                     │
+                             JSON → Cache → Response
 """
 
 import json
 import logging
+import os
 import re
 import time
+from functools import lru_cache
 from urllib.parse import urlparse
 
 import httpx
-from fastapi import FastAPI, Request
+from cachetools import TTLCache
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from waf.waf_engine import WafEngine
 from waf.waf_logger import log_alert
@@ -57,7 +59,6 @@ from waf.waf_logger import log_alert
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
@@ -65,29 +66,54 @@ logging.basicConfig(
 logger = logging.getLogger("SWG-Orchestrator")
 
 # ---------------------------------------------------------------------------
-# Cấu hình upstream AI servers
+# Task 1: Rate Limiter (SlowAPI)
 # ---------------------------------------------------------------------------
+limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 
-FASTTEXT_URL   = "http://localhost:5001/predict"
-DISTILBERT_URL = "http://localhost:5002/predict"
+# ---------------------------------------------------------------------------
+# Task 1: TTL Cache — stores SAFE results to avoid repeat AI calls
+# TTL = 3600s (1 hour), max 2048 entries
+# ---------------------------------------------------------------------------
+_scan_cache: TTLCache = TTLCache(maxsize=2048, ttl=3600)
+_cache_lock_import = __import__("threading").Lock()
 
-# Ngưỡng phân loại: nếu confidence > HIGH_CONF_THRESHOLD → kết luận ngay
+def _cache_key(text: str, url: str | None) -> str:
+    """Deterministic cache key from scan inputs."""
+    return f"{hash(text)}::{hash(url or '')}"
+
+# ---------------------------------------------------------------------------
+# Task 2: Zero-Trust — API Key
+# ---------------------------------------------------------------------------
+API_KEY = os.getenv("SWG_API_KEY", "swg-vnu-is-2026")
+
+def verify_api_key(request: Request):
+    """Dependency: validate X-API-Key header."""
+    key = request.headers.get("X-API-Key", "")
+    if key != API_KEY:
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "status": "UNAUTHORIZED",
+                "message": "Missing or invalid X-API-Key header.",
+            },
+        )
+
+# ---------------------------------------------------------------------------
+# Upstream AI URLs — env-var first, localhost fallback (Dev mode)
+# ---------------------------------------------------------------------------
+FASTTEXT_URL   = os.getenv("FASTTEXT_URL",   "http://localhost:5001/predict")
+DISTILBERT_URL = os.getenv("DISTILBERT_URL", "http://localhost:5002/predict")
+FASTTEXT_HEALTH   = os.getenv("FASTTEXT_HEALTH",   "http://localhost:5001/health")
+DISTILBERT_HEALTH = os.getenv("DISTILBERT_HEALTH", "http://localhost:5002/health")
+
 HIGH_CONF_THRESHOLD = 0.75
-# Ngưỡng mập mờ dưới: nếu confidence < LOW_CONF_THRESHOLD → cũng kết luận ngay
 LOW_CONF_THRESHOLD  = 0.40
-
-# Timeout cho mỗi lần gọi AI (giây)
 AI_TIMEOUT = 10.0
 
 # ---------------------------------------------------------------------------
-# LAYER 0 — TRUSTED DOMAIN WHITELIST
-# Các domain này được xác minh là nguồn tin uy tín.
-# Nội dung từ các trang này sẽ được bypass toàn bộ AI pipeline
-# (WAF rule-based vẫn chạy để chặn tấn công kỹ thuật).
+# Layer 0 — Trusted Domain Whitelist
 # ---------------------------------------------------------------------------
-
 TRUSTED_DOMAINS: set[str] = {
-    # ── Báo điện tử Việt Nam uy tín ────────────────────────────────────────
     "vnexpress.net", "www.vnexpress.net",
     "tuoitre.vn", "www.tuoitre.vn",
     "thanhnien.vn", "www.thanhnien.vn",
@@ -114,15 +140,11 @@ TRUSTED_DOMAINS: set[str] = {
     "genk.vn", "www.genk.vn",
     "ictnews.vn", "www.ictnews.vn",
     "pcworld.com.vn", "www.pcworld.com.vn",
-
-    # ── Cơ quan Nhà nước / Chính phủ ───────────────────────────────────────
     "gov.vn", "chinhphu.vn",
     "mof.gov.vn", "moit.gov.vn", "moet.gov.vn",
     "mps.gov.vn", "moha.gov.vn",
     "bocongan.gov.vn",
     "suckhoedoisong.vn", "moh.gov.vn",
-
-    # ── Ngân hàng / Tài chính chính thống ──────────────────────────────────
     "vietcombank.com.vn",
     "vietinbank.vn",
     "bidv.com.vn",
@@ -135,16 +157,11 @@ TRUSTED_DOMAINS: set[str] = {
     "sbv.gov.vn",
     "ssi.com.vn",
     "vndirect.com.vn",
-
-    # ── Giáo dục ───────────────────────────────────────────────────────────
     "hust.edu.vn", "uet.vnu.edu.vn",
     "hcmut.edu.vn", "uit.edu.vn",
     "neu.edu.vn", "ueh.edu.vn",
     "vnu.edu.vn", "dlu.edu.vn",
     "udn.vn",
-    "moet.gov.vn",
-
-    # ── Nguồn quốc tế uy tín ───────────────────────────────────────────────
     "wikipedia.org", "en.wikipedia.org", "vi.wikipedia.org",
     "google.com", "www.google.com",
     "youtube.com", "www.youtube.com",
@@ -167,7 +184,6 @@ TRUSTED_DOMAINS: set[str] = {
 
 
 def extract_domain(url: str | None) -> str | None:
-    """Lấy domain thuần (không port, không path) từ URL."""
     if not url:
         return None
     try:
@@ -178,14 +194,11 @@ def extract_domain(url: str | None) -> str | None:
 
 
 def is_trusted_domain(url: str | None) -> bool:
-    """Kiểm tra URL có thuộc trusted domain không."""
     domain = extract_domain(url)
     if not domain:
         return False
-    # Khớp chính xác
     if domain in TRUSTED_DOMAINS:
         return True
-    # Khớp subdomain: abc.vnexpress.net → vnexpress.net
     parts = domain.split(".")
     for i in range(1, len(parts)):
         parent = ".".join(parts[i:])
@@ -193,38 +206,29 @@ def is_trusted_domain(url: str | None) -> bool:
             return True
     return False
 
+
 def has_trusted_citation(text: str) -> str | None:
-    """
-    Kiểm tra xem trong nội dung văn bản có trích dẫn nguồn uy tín không.
-    Ví dụ: "Nguồn: VOV2", "Theo VnExpress", "Nguồn: Báo Chính phủ"
-    Trả về tên nguồn nếu có, ngược lại trả về None.
-    """
     if not text:
         return None
-    
-    # Các pattern thường gặp khi trích dẫn báo chí
     citations = [
         r"(?:nguồn|theo)\s*:\s*(vov|vov1|vov2|vov3|vtv|vnexpress|tuổi trẻ|thanh niên|dân trí|nhân dân|vietnamnet|báo chính phủ|chinhphu\.vn)",
         r"(?:nguồn|theo)\s+(báo\s+)?(vov|vtv|vnexpress|tuổi trẻ|thanh niên|dân trí|nhân dân|vietnamnet|chính phủ)",
     ]
-    
     text_lower = text.lower()
     for pattern in citations:
         match = re.search(pattern, text_lower)
         if match:
-            # Lấy tên nguồn cụ thể đã match
             source = match.group(1) if match.lastindex == 1 else match.group(2)
             return source.upper() if source else "TRUSTED_SOURCE"
-            
     return None
+
 
 # ---------------------------------------------------------------------------
 # Schema
 # ---------------------------------------------------------------------------
-
 class ScanRequest(BaseModel):
     text: str
-    url: str | None = None   # URL trang nguồn (gửi từ Extension) — dùng cho Trusted Domain check
+    url: str | None = None
 
     model_config = {
         "json_schema_extra": {
@@ -232,26 +236,29 @@ class ScanRequest(BaseModel):
                 {
                     "text": "Chúc mừng! Bạn đã trúng thưởng 50 triệu đồng!",
                     "url": "https://example-scam.com/win",
-                },
+                }
             ]
         }
     }
 
 
 # ---------------------------------------------------------------------------
-# Khởi tạo app + engine
+# App Init
 # ---------------------------------------------------------------------------
-
 app = FastAPI(
-    title="SWG Shield — Multi-Layer Orchestrator",
+    title="SWG Shield — Multi-Layer Orchestrator v4.0",
     description=(
-        "Cổng gateway bảo mật 4 lớp: WAF (Rule-based) → FastText AI → "
-        "DistilBERT (phân tích sâu khi mập mờ) → HITL Report."
+        "Enterprise SWG: WAF → Trusted Bypass → FastText → DistilBERT.\n"
+        "v4.0: TTL Cache · Rate Limiting · Zero-Trust API Key · WAF Hot-Reload · XAI"
     ),
-    version="3.0.0",
+    version="4.0.0",
 )
 
-# ── CORS: cho phép browser extension gọi API ────────────────────────────────
+# Register SlowAPI rate-limit error handler
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -264,9 +271,8 @@ waf_engine = WafEngine()
 
 
 # ---------------------------------------------------------------------------
-# Helper: thêm CORS headers vào response bị chặn (middleware bypass CORS)
+# CORS helper for middleware-blocked responses
 # ---------------------------------------------------------------------------
-
 def _add_cors(response: JSONResponse, request: Request) -> JSONResponse:
     origin = request.headers.get("origin")
     response.headers["Access-Control-Allow-Origin"] = origin if origin else "*"
@@ -277,16 +283,11 @@ def _add_cors(response: JSONResponse, request: Request) -> JSONResponse:
 
 
 # ---------------------------------------------------------------------------
-# Middleware WAF — Layer 1 (luôn chạy đầu tiên)
+# Middleware WAF — Layer 1
 # ---------------------------------------------------------------------------
-
 @app.middleware("http")
 async def waf_middleware(request: Request, call_next):
-    """
-    Middleware HTTP kiểm tra tất cả POST /api/scan request qua WAF Engine.
-    Nếu is_attack=True → trả 403 BLOCKED_BY_WAF ngay, không đi tiếp.
-    Nếu sạch → call_next để Orchestrator endpoint xử lý tiếp.
-    """
+    """WAF pre-scan all POST /api/scan requests before business logic."""
     if request.method == "POST" and request.url.path == "/api/scan":
         raw_body = await request.body()
 
@@ -297,9 +298,9 @@ async def waf_middleware(request: Request, call_next):
             payload_text = str(body_json.get("text", ""))
             payload_url = str(body_json.get("url", ""))
         except (json.JSONDecodeError, AttributeError):
-            logger.warning("WAF: Không parse được JSON body từ %s", request.client)
+            logger.warning("WAF: Cannot parse JSON body from %s", request.client)
 
-        # 1. WAF quét URL trước (để tìm SQLi, XSS, Path Traversal, v.v. trên thanh địa chỉ)
+        # 1. WAF scans URL (detect SQLi / XSS / path traversal in the address bar)
         if payload_url and payload_url != "None":
             url_result = waf_engine.inspect(payload_url)
             if url_result["is_attack"]:
@@ -314,17 +315,16 @@ async def waf_middleware(request: Request, call_next):
                     "score": 1.0,
                     "latency_ms": 0,
                     "blocked_url": url_result.get("blocked_url", payload_url),
-                    "detail": f"Phát hiện URL chứa payload tấn công ({attack_type})."
+                    "detail": f"URL contains attack payload ({attack_type}).",
                 }), request)
 
-        # 2. WAF quét Text (nội dung bôi đen)
+        # 2. WAF scans highlighted text content
         if payload_text:
             result = waf_engine.inspect(payload_text)
-
             if result["is_attack"]:
-                attack_type: str = result["attack_type"]
+                attack_type = result["attack_type"]
                 log_alert(attack_type, payload_text)
-                logger.warning("WAF BLOCKED [%s]: %.80s", attack_type, payload_text)
+                logger.warning("WAF BLOCKED TEXT [%s]: %.80s", attack_type, payload_text)
 
                 response_body: dict = {
                     "status": "BLOCKED_BY_WAF",
@@ -336,66 +336,101 @@ async def waf_middleware(request: Request, call_next):
                 }
                 if result.get("blocked_url"):
                     response_body["blocked_url"] = result["blocked_url"]
-                    response_body["detail"] = (
-                        f"Phát hiện URL đáng ngờ: {result['blocked_url'][:80]}"
-                    )
+                    response_body["detail"] = f"Suspicious URL detected: {result['blocked_url'][:80]}"
 
-                response = JSONResponse(status_code=403, content=response_body)
-                return _add_cors(response, request)
+                return _add_cors(JSONResponse(status_code=403, content=response_body), request)
 
     return await call_next(request)
 
 
 # ---------------------------------------------------------------------------
-# Endpoint /api/scan — Orchestrator chính (Layer 2 & 3)
+# Task 3: WAF Hot-Reload Endpoint
 # ---------------------------------------------------------------------------
-
-@app.post("/api/scan")
-async def api_scan(body: ScanRequest, request: Request):
+@app.post("/api/waf/reload")
+async def waf_hot_reload(request: Request, _: None = Depends(verify_api_key)):
     """
-    Orchestrator Pipeline (4 lớp):
-      0. TRUSTED DOMAIN → bypass toàn bộ AI nếu domain thuộc whitelist
-      1. WAF đã CLEAN (qua middleware) → gọi FastText
-      2. FastText rõ ràng (>0.75 hoặc <0.40) → trả kết quả ngay
-      3. FastText mập mờ (0.40-0.75) → escalate sang DistilBERT
+    Reload WAF rules from waf_rules.json at runtime — zero downtime.
+    Requires X-API-Key header.
+    """
+    try:
+        status = waf_engine.reload_rules()
+        logger.info("WAF hot-reload triggered via API: %s", status)
+        return {
+            "status": "ok",
+            "message": "WAF rules reloaded successfully.",
+            "details": status,
+        }
+    except Exception as exc:
+        logger.error("WAF hot-reload failed: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Reload failed: {str(exc)}")
+
+
+# ---------------------------------------------------------------------------
+# Task 1+2: Main Scan Endpoint — Rate-limited + Zero-Trust
+# ---------------------------------------------------------------------------
+@app.post("/api/scan")
+@limiter.limit("60/minute")
+async def api_scan(
+    request: Request,
+    body: ScanRequest,
+    _: None = Depends(verify_api_key),
+):
+    """
+    Orchestrator Pipeline (4 layers):
+      0. TTL Cache hit → return immediately
+      1. Trusted Domain / Citation → SAFE bypass
+      2. FastText (semantic speed layer)
+      3. DistilBERT (deep analysis for ambiguous cases)
     """
     t_start = time.monotonic()
     text = body.text
     url  = body.url
 
-    # ── LAYER 0: Trusted Domain / Citation Bypass ──────────────────────────
-    
-    # 1. Kiểm tra URL (nếu extension gửi lên)
+    # ── Task 1: Cache Check ───────────────────────────────────────────
+    cache_key = _cache_key(text, url)
+    with _cache_lock_import:
+        cached = _scan_cache.get(cache_key)
+    if cached is not None:
+        logger.info("Cache HIT for key=%s", cache_key[:16])
+        return {**cached, "cache_hit": True}
+
+    # ── LAYER 0: Trusted Domain Bypass ───────────────────────────────
     if is_trusted_domain(url):
         domain = extract_domain(url)
         latency = round((time.monotonic() - t_start) * 1000, 2)
         logger.info("Layer 0 TRUSTED DOMAIN BYPASS: %s → SAFE", domain)
-        return {
+        result = {
             "status": "SUCCESS",
             "layer": "TRUSTED_DOMAIN",
             "label": "Safe",
             "score": 1.0,
             "latency_ms": latency,
-            "detail": f"Domain ‘{domain}’ nằm trong danh sách nguồn tin cậy. Bỏ qua AI pipeline.",
+            "detail": f"Domain '{domain}' is whitelisted. AI pipeline bypassed.",
             "trusted_domain": domain,
         }
-        
-    # 2. Kiểm tra Trích dẫn nguồn trong đoạn text (Nguồn: VOV2, v.v.)
+        with _cache_lock_import:
+            _scan_cache[cache_key] = result
+        return result
+
+    # ── LAYER 0: Trusted Citation Bypass ─────────────────────────────
     cited_source = has_trusted_citation(text)
     if cited_source:
         latency = round((time.monotonic() - t_start) * 1000, 2)
         logger.info("Layer 0 TRUSTED CITATION BYPASS: %s → SAFE", cited_source)
-        return {
+        result = {
             "status": "SUCCESS",
             "layer": "TRUSTED_CITATION",
             "label": "Safe",
             "score": 1.0,
             "latency_ms": latency,
-            "detail": f"Văn bản có trích dẫn nguồn uy tín ({cited_source}). Bỏ qua AI pipeline.",
+            "detail": f"Text cites trusted source ({cited_source}). AI pipeline bypassed.",
             "trusted_citation": cited_source,
         }
+        with _cache_lock_import:
+            _scan_cache[cache_key] = result
+        return result
 
-    # ── Layer 2: Gọi FastText Server ─────────────────────────────────────────
+    # ── Layer 2: FastText ─────────────────────────────────────────────
     fasttext_result = None
     try:
         async with httpx.AsyncClient(timeout=AI_TIMEOUT) as client:
@@ -403,40 +438,33 @@ async def api_scan(body: ScanRequest, request: Request):
             ft_resp.raise_for_status()
             fasttext_result = ft_resp.json()
     except httpx.ConnectError:
-        logger.error("Layer 2: FastText server không kết nối được tại %s", FASTTEXT_URL)
+        logger.error("Layer 2: FastText unreachable at %s", FASTTEXT_URL)
     except httpx.TimeoutException:
-        logger.error("Layer 2: FastText server timeout sau %.1fs", AI_TIMEOUT)
+        logger.error("Layer 2: FastText timeout (%.1fs)", AI_TIMEOUT)
     except Exception as exc:
-        logger.error("Layer 2: FastText lỗi không xác định: %s", exc)
+        logger.error("Layer 2: FastText unknown error: %s", exc)
 
-    # Nếu FastText không phản hồi → vẫn trả CLEAN (WAF đã pass)
     if fasttext_result is None:
         latency = round((time.monotonic() - t_start) * 1000, 2)
-        logger.warning("Layer 2: FastText unavailable, fallback CLEAN.")
         return {
             "status": "SUCCESS",
             "layer": "WAF",
             "label": "Safe",
             "score": None,
             "latency_ms": latency,
-            "detail": "FastText server unavailable, WAF layer passed.",
+            "detail": "FastText server unavailable. WAF layer passed.",
         }
 
     ft_label: str = fasttext_result.get("prediction", "Unknown")
     ft_confidence: float = float(fasttext_result.get("confidence", 0.0))
 
-    logger.info(
-        "Layer 2 FastText → label=%s confidence=%.4f", ft_label, ft_confidence
-    )
+    logger.info("Layer 2 FastText → label=%s confidence=%.4f", ft_label, ft_confidence)
 
-    # ── Đánh giá confidence ngưỡng ──────────────────────────────────────────
     is_clear = ft_confidence > HIGH_CONF_THRESHOLD or ft_confidence < LOW_CONF_THRESHOLD
 
     if is_clear:
-        # Kết quả rõ ràng → trả ngay
         latency = round((time.monotonic() - t_start) * 1000, 2)
-        logger.info("Layer 2: Kết quả rõ ràng (%.4f) → trả kết quả.", ft_confidence)
-        return {
+        result = {
             "status": "SUCCESS",
             "layer": "FastText",
             "label": ft_label,
@@ -444,11 +472,14 @@ async def api_scan(body: ScanRequest, request: Request):
             "latency_ms": latency,
             "fasttext": fasttext_result,
         }
+        # Cache only SAFE results
+        if ft_label in ("Safe", "Legit"):
+            with _cache_lock_import:
+                _scan_cache[cache_key] = result
+        return result
 
-    # ── Vùng mập mờ → Layer 3: DistilBERT ──────────────────────────────────
-    logger.info(
-        "Layer 2: Confidence mập mờ (%.4f) → Escalate sang DistilBERT.", ft_confidence
-    )
+    # ── Layer 3: DistilBERT (ambiguous zone) ─────────────────────────
+    logger.info("Layer 2: Ambiguous (%.4f) → Escalating to DistilBERT.", ft_confidence)
 
     distilbert_result = None
     try:
@@ -457,17 +488,15 @@ async def api_scan(body: ScanRequest, request: Request):
             db_resp.raise_for_status()
             distilbert_result = db_resp.json()
     except httpx.ConnectError:
-        logger.error("Layer 3: DistilBERT server không kết nối được tại %s", DISTILBERT_URL)
+        logger.error("Layer 3: DistilBERT unreachable at %s", DISTILBERT_URL)
     except httpx.TimeoutException:
-        logger.error("Layer 3: DistilBERT server timeout sau %.1fs", AI_TIMEOUT)
+        logger.error("Layer 3: DistilBERT timeout (%.1fs)", AI_TIMEOUT)
     except Exception as exc:
-        logger.error("Layer 3: DistilBERT lỗi không xác định: %s", exc)
+        logger.error("Layer 3: DistilBERT unknown error: %s", exc)
 
     latency = round((time.monotonic() - t_start) * 1000, 2)
 
-    # Nếu DistilBERT cũng không phản hồi → fallback về FastText
     if distilbert_result is None:
-        logger.warning("Layer 3: DistilBERT unavailable, fallback về FastText.")
         return {
             "status": "SUCCESS",
             "layer": "FastText (DistilBERT fallback)",
@@ -479,13 +508,11 @@ async def api_scan(body: ScanRequest, request: Request):
         }
 
     db_label: str = distilbert_result.get("prediction", "Unknown")
-    db_confidence: float = float(distilbert_result.get("confidence", 0.0))
+    db_confidence: float = float(distilbert_result.get("confidence_score", distilbert_result.get("confidence", 0.0)))
 
-    logger.info(
-        "Layer 3 DistilBERT → label=%s confidence=%.4f", db_label, db_confidence
-    )
+    logger.info("Layer 3 DistilBERT → label=%s confidence=%.4f", db_label, db_confidence)
 
-    return {
+    result = {
         "status": "SUCCESS",
         "layer": "DistilBERT",
         "label": db_label,
@@ -495,29 +522,48 @@ async def api_scan(body: ScanRequest, request: Request):
         "distilbert": distilbert_result,
     }
 
+    # Cache SAFE results only
+    if db_label in ("Safe", "Legit"):
+        with _cache_lock_import:
+            _scan_cache[cache_key] = result
+
+    return result
+
 
 # ---------------------------------------------------------------------------
-# Health check — kiểm tra tất cả các layer
+# Cache Stats Endpoint (Operational visibility)
 # ---------------------------------------------------------------------------
+@app.get("/api/cache/stats")
+async def cache_stats(_: None = Depends(verify_api_key)):
+    """Return current TTL cache statistics."""
+    with _cache_lock_import:
+        size = len(_scan_cache)
+        maxsize = _scan_cache.maxsize
+        ttl = _scan_cache.ttl
+    return {
+        "cache_entries": size,
+        "max_entries": maxsize,
+        "ttl_seconds": ttl,
+        "utilization_pct": round(size / maxsize * 100, 1),
+    }
 
+
+# ---------------------------------------------------------------------------
+# Health Check
+# ---------------------------------------------------------------------------
 @app.get("/health")
 async def health_check():
-    """Kiểm tra trạng thái của Gateway và các upstream AI servers."""
-    services: dict = {
-        "waf": "ok",
-        "fasttext": "unknown",
-        "distilbert": "unknown",
-    }
+    services: dict = {"waf": "ok", "fasttext": "unknown", "distilbert": "unknown"}
 
     async with httpx.AsyncClient(timeout=3.0) as client:
         try:
-            r = await client.get("http://localhost:5001/health")
+            r = await client.get(FASTTEXT_HEALTH)
             services["fasttext"] = "ok" if r.status_code == 200 else f"error:{r.status_code}"
         except Exception:
             services["fasttext"] = "unreachable"
 
         try:
-            r = await client.get("http://localhost:5002/health")
+            r = await client.get(DISTILBERT_HEALTH)
             services["distilbert"] = "ok" if r.status_code == 200 else f"error:{r.status_code}"
         except Exception:
             services["distilbert"] = "unreachable"
@@ -526,7 +572,7 @@ async def health_check():
 
     return {
         "status": overall,
-        "version": "3.0.0",
+        "version": "4.0.0",
         "layers": {
             "layer_1_waf": services["waf"],
             "layer_2_fasttext": services["fasttext"],
@@ -536,14 +582,16 @@ async def health_check():
             "high_confidence": HIGH_CONF_THRESHOLD,
             "low_confidence": LOW_CONF_THRESHOLD,
         },
+        "upstream_urls": {
+            "fasttext": FASTTEXT_URL,
+            "distilbert": DISTILBERT_URL,
+        },
     }
 
 
 # ---------------------------------------------------------------------------
-# Chạy trực tiếp (dev mode)
+# Dev entrypoint
 # ---------------------------------------------------------------------------
-
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

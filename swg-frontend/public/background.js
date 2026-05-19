@@ -1,3 +1,10 @@
+// ── Zero-Trust: API Key for Gateway requests ─────────────────────────────
+const SWG_API_KEY = "swg-vnu-is-2026";
+const SWG_GATEWAY_HEADERS = {
+    "Content-Type": "application/json",
+    "X-API-Key": SWG_API_KEY
+};
+
 chrome.runtime.onInstalled.addListener(() => {
     chrome.contextMenus.create({
         id: "swg-scan",
@@ -17,7 +24,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
             // Send request to Central Gateway (Port 8000)
             const res = await fetch("http://localhost:8000/api/scan", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: SWG_GATEWAY_HEADERS,
                 body: JSON.stringify({ text: targetText, url: tab.url })
             });
             const result = await res.json();
@@ -83,7 +90,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
     try {
         const response = await fetch('http://localhost:8000/api/scan', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: SWG_GATEWAY_HEADERS,
             body: JSON.stringify({ text: details.url, url: details.url })
         });
         const result = await response.json();

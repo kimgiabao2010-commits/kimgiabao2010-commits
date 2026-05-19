@@ -2,82 +2,152 @@
 waf/waf_engine.py
 -----------------
 Core Logic — WafEngine class.
+
+Task 3 update: Rules now loaded from waf_rules.json (hot-reloadable).
+Falls back to modsec_rules_set.py if JSON is missing/invalid.
 """
 
 from __future__ import annotations
 
 import html
+import json
+import logging
+import os
 import re
+import threading
 import urllib.parse
-from typing import Optional
+from typing import Dict, List, Optional
 
-from waf.modsec_rules_set import MODSEC_RULES
+logger = logging.getLogger("SWG-WAF")
+
+# Path to the hot-reloadable rules file (relative to project root)
+_WAF_RULES_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), "waf_rules.json"
+)
 
 # Danh sách các đuôi tên miền được phép (Whitelist TLD)
-TRUSTED_TLDS = ('.vn', '.com', '.com.vn', '.edu.vn', '.gov.vn', '.net', '.org')
+TRUSTED_TLDS = (
+    '.vn', '.com.vn', '.com', '.net',
+    '.edu.vn', '.edu', '.ac.vn', '.ac.uk',
+    '.gov.vn', '.gov',
+    '.org', '.org.vn', '.int',
+    '.io', '.ai', '.dev', '.app', '.tech', '.me', '.info'
+)
 
 # ---------------------------------------------------------------------------
-# Regex tách URL — dùng riêng, không compile vào MODSEC_RULES
+# Regex tách URL
 # ---------------------------------------------------------------------------
 _URL_EXTRACTOR = re.compile(
-    r"(?:https?|ftp)://"           # scheme
-    r"[^\s\"'<>\[\]{}\(\)\\]+"    # ký tự hợp lệ trong URL
-    r"[^\s\"'<>\[\]{}\(\)\\.,;:!?]",  # không kết thúc bằng dấu câu
+    r"(?:https?|ftp)://"
+    r"[^\s\"'<>\[\]{}\(\)\\]+"
+    r"[^\s\"'<>\[\]{}\(\)\\.,;:!?]",
     re.IGNORECASE,
 )
 
-def check_url_security(url: str) -> dict:
-    """
-    Hàm heuristic kiểm tra độ an toàn của URL (chống MitM và Phishing domain).
-    """
+
+def _compile_rules_from_json(rules_dict: dict) -> Dict[str, List[re.Pattern]]:
+    """Convert raw-string rules from JSON into compiled regex patterns."""
+    compiled: Dict[str, List[re.Pattern]] = {}
+    for attack_type, patterns in rules_dict.items():
+        if attack_type.startswith("_"):  # skip metadata keys
+            continue
+        compiled_list: List[re.Pattern] = []
+        for raw in patterns:
+            try:
+                compiled_list.append(re.compile(raw, re.IGNORECASE))
+            except re.error as exc:
+                logger.warning("WAF rule compile error [%s] '%s': %s", attack_type, raw[:60], exc)
+        compiled[attack_type] = compiled_list
+    return compiled
+
+
+def _load_rules_from_json(path: str) -> Optional[Dict[str, List[re.Pattern]]]:
+    """Load and compile WAF rules from JSON file. Returns None on failure."""
     try:
-        # Rule 1: Protocol Enforcement
+        with open(path, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+        compiled = _compile_rules_from_json(raw)
+        logger.info("WAF: Loaded %d rule groups from %s", len(compiled), path)
+        return compiled
+    except FileNotFoundError:
+        logger.warning("WAF: waf_rules.json not found at %s — falling back to modsec_rules_set.py", path)
+        return None
+    except Exception as exc:
+        logger.error("WAF: Failed to load waf_rules.json: %s", exc)
+        return None
+
+
+def _load_fallback_rules() -> Dict[str, List[re.Pattern]]:
+    """Load compiled rules from the hardcoded modsec_rules_set.py."""
+    from waf.modsec_rules_set import MODSEC_RULES  # type: ignore
+    logger.info("WAF: Using fallback rules from modsec_rules_set.py")
+    return MODSEC_RULES
+
+
+def check_url_security(url: str) -> dict:
+    """Heuristic kiểm tra độ an toàn của URL."""
+    try:
         lower_url = url.lower()
         if lower_url.startswith("http://") or lower_url.startswith("ftp://"):
             return {"is_safe": False, "attack_type": "INSECURE_HTTP_PROTOCOL"}
 
-        # Xử lý URL: Thêm https:// nếu URL không có scheme để parse được
-        if not lower_url.startswith("http"):
-            parse_url = "https://" + url
-        else:
-            parse_url = url
-
+        parse_url = url if lower_url.startswith("http") else f"https://{url}"
         parsed = urllib.parse.urlparse(parse_url)
-        domain = parsed.hostname or ""
-        domain = domain.lower()
-
-        # Bỏ www. nếu có
+        domain = (parsed.hostname or "").lower()
         if domain.startswith("www."):
             domain = domain[4:]
 
-        # Rule 2: Phishing TLD
         if not any(domain.endswith(tld) for tld in TRUSTED_TLDS):
             return {"is_safe": False, "attack_type": "SUSPICIOUS_TLD_PHISHING"}
 
         return {"is_safe": True}
     except Exception:
-        # Xử lý Exception: URL quá dị dạng không parse được -> mặc định là Phishing
         return {"is_safe": False, "attack_type": "SUSPICIOUS_TLD_PHISHING"}
+
 
 class WafEngine:
     """
     Layer 1 WAF Engine — Defense-in-Depth.
+    Supports hot-reload of rules from waf_rules.json via reload_rules().
     """
+
+    def __init__(self):
+        self._lock = threading.RLock()
+        self._rules: Dict[str, List[re.Pattern]] = {}
+        self.reload_rules()
+
+    def reload_rules(self) -> dict:
+        """
+        Hot-reload rules from waf_rules.json without restarting.
+        Falls back to modsec_rules_set.py if JSON is unavailable.
+        Returns a status dict.
+        """
+        new_rules = _load_rules_from_json(_WAF_RULES_PATH)
+        if new_rules is None:
+            new_rules = _load_fallback_rules()
+            source = "modsec_rules_set.py (fallback)"
+        else:
+            source = _WAF_RULES_PATH
+
+        with self._lock:
+            self._rules = new_rules
+
+        group_count = len(new_rules)
+        rule_count = sum(len(v) for v in new_rules.values())
+        logger.info("WAF: Reloaded %d groups / %d rules from %s", group_count, rule_count, source)
+        return {
+            "status": "ok",
+            "source": source,
+            "groups": group_count,
+            "total_rules": rule_count,
+        }
 
     @staticmethod
     def normalize_payload(text: str) -> str:
-        """
-        Chuẩn hóa payload để vô hiệu hóa các kỹ thuật bypass phổ biến.
-        Thực hiện đầy đủ 4 bước theo yêu cầu kiến trúc SWG:
-        1. Giải mã URL Encoding vòng lặp (chống double/triple encoding) + Unicode escape.
-        2. Chuyển toàn bộ về chữ thường (.lower()) để match case-insensitive.
-        3. Giải mã HTML Entities (&lt; → <, &#x27; → ', v.v.).
-        4. Xóa Null Byte, comment SQL, thu gọn khoảng trắng thừa thành 1 space.
-        """
+        """Chuẩn hóa payload — anti-bypass (multi-pass URL decode, lowercase, HTML unescape, null byte removal)."""
         if not isinstance(text, str):
             text = str(text)
 
-        # Bước 1: Giải mã URL Encoding (Multi-pass phá double/triple encoding)
         try:
             prev = None
             while prev != text:
@@ -86,31 +156,22 @@ class WafEngine:
         except Exception:
             pass
 
-        # Bước 1b: Giải mã Unicode escape (\u0041 → A, \x3c → <)
         try:
             if "\\u" in text or "\\x" in text:
                 text = text.encode("raw_unicode_escape").decode("unicode_escape")
         except Exception:
             pass
 
-        # Bước 2: Chuyển về chữ thường — chuẩn hóa case cho regex matching
         text = text.lower()
 
-        # Bước 3: Giải mã HTML Entities (&lt; &gt; &amp; &#x27; &#60; …)
         try:
             text = html.unescape(text)
         except Exception:
             pass
 
-        # Bước 4a: Xóa bỏ ký tự Null Byte (%00, \x00)
-        text = text.replace('\x00', '')
-        text = text.replace('%00', '')
-
-        # Bước 4b: Xóa bỏ các comment SQL (/*...*/ và --comment)
+        text = text.replace('\x00', '').replace('%00', '')
         text = re.sub(r"/\*.*?\*/", " ", text, flags=re.DOTALL)
         text = re.sub(r"(?<![:/])--[^\r\n]*", " ", text)
-
-        # Bước 4c: Thu gọn tab, newline, nhiều space thành 1 khoảng trắng duy nhất
         text = re.sub(r"\s+", " ", text)
 
         return text.strip()
@@ -121,20 +182,19 @@ class WafEngine:
         return _URL_EXTRACTOR.findall(text)
 
     def inspect(self, payload: str) -> dict:
-        """
-        Kiểm tra payload qua toàn bộ pipeline.
-        Sử dụng cơ chế phân tích URL bằng Heuristic.
-        """
+        """Kiểm tra payload qua toàn bộ WAF pipeline."""
         if not isinstance(payload, str):
             payload = str(payload)
 
-        # ── Bước 1: Chuẩn hóa payload ──────────────────────────────
         normalized = self.normalize_payload(payload)
 
-        # ── Bước 2: Quét 5 nhóm luật Regex Tấn Công ────────────────
-        for attack_type, patterns in MODSEC_RULES.items():
+        with self._lock:
+            rules_snapshot = self._rules
+
+        # Quét 5 nhóm luật Regex
+        for attack_type, patterns in rules_snapshot.items():
             if attack_type == "MALICIOUS_URL_PATTERNS":
-                continue  # Bỏ qua Regex URL vì dùng Heuristic URL Validation
+                continue
 
             for compiled_re in patterns:
                 if compiled_re.search(normalized):
@@ -147,7 +207,7 @@ class WafEngine:
                         "normalized": normalized[:200],
                     }
 
-        # ── Bước 3: Tách URL và Phân tích Heuristic ────────────────
+        # Tách URL và Phân tích Heuristic
         urls_found = self.extract_urls(payload)
         urls_found_norm = self.extract_urls(normalized)
         all_urls = list(dict.fromkeys(urls_found + urls_found_norm))
@@ -159,14 +219,12 @@ class WafEngine:
                     "is_attack": True,
                     "attack_type": result["attack_type"],
                     "matched_data": url,
-                    # Bổ sung key để không làm hỏng frontend hiện tại
                     "matched_pattern": result["attack_type"],
                     "urls_found": all_urls,
                     "blocked_url": url,
                     "normalized": normalized[:200],
                 }
 
-        # ── Bước 4: Payload sạch ───────────────────────────────────
         return {
             "is_attack": False,
             "attack_type": None,

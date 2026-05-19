@@ -55,3 +55,19 @@
 [2026-05-13 11:41:25] [WAF_ALERT] Type: OWASP_RCE | Payload: Tớ vừa tìm thấy một khóa học lập trình Python cơ bản hoàn toàn miễn phí trên nền tảng của trường. Bạn nào quan tâm có th...
 [2026-05-18 21:50:57] [WAF_ALERT] Type: INSECURE_HTTP_PROTOCOL | Payload: Thứ hai, 18/05/2026 # Luyện thi lớp 10 Podcast Tuần Việt Nam    Đăng nhập   Chính trị Thời sự Kinh doanh Dân tộc và Tôn ...
 [2026-05-18 23:20:13] [WAF_ALERT] Type: SUSPICIOUS_TLD_PHISHING | Payload: https://nic.xyz/
+[2026-05-19 08:22:31] [WAF_ALERT] Type: SUSPICIOUS_TLD_PHISHING | Payload: https://nic.xyz/
+[2026-05-19 08:22:33] [WAF_ALERT] Type: SUSPICIOUS_TLD_PHISHING | Payload: https://nic.xyz/
+[2026-05-19 08:22:43] [WAF_ALERT] Type: SUSPICIOUS_TLD_PHISHING | Payload: https://nic.xyz/
+[2026-05-19 08:27:06] [WAF_ALERT] Type: SUSPICIOUS_TLD_PHISHING | Payload: https://nic.xyz/#
+[2026-05-19 08:27:29] [WAF_ALERT] Type: SUSPICIOUS_TLD_PHISHING | Payload: https://nic.xyz/#
+[2026-05-19 08:27:36] [WAF_ALERT] Type: SUSPICIOUS_TLD_PHISHING | Payload: https://nic.xyz/#
+[2026-05-19 08:35:31] [WAF_ALERT] Type: SUSPICIOUS_TLD_PHISHING | Payload: https://nic.xyz/#
+[2026-05-19 08:35:38] [WAF_ALERT] Type: SUSPICIOUS_TLD_PHISHING | Payload: https://nic.xyz/#
+[2026-05-19 08:35:50] [WAF_ALERT] Type: SUSPICIOUS_TLD_PHISHING | Payload: https://nic.xyz/#
+[2026-05-19 08:36:04] [WAF_ALERT] Type: SUSPICIOUS_TLD_PHISHING | Payload: https://nic.xyz/#
+[2026-05-19 08:36:08] [WAF_ALERT] Type: SUSPICIOUS_TLD_PHISHING | Payload: https://nic.xyz/#
+[2026-05-19 08:37:20] [WAF_ALERT] Type: SUSPICIOUS_TLD_PHISHING | Payload: https://nic.xyz/
+[2026-05-19 08:37:32] [WAF_ALERT] Type: SUSPICIOUS_TLD_PHISHING | Payload: https://nic.xyz/#
+[2026-05-19 09:05:25] [WAF_ALERT] Type: SUSPICIOUS_TLD_PHISHING | Payload: https://siem.finova.one/#monitoring?caseId=6a0bc0d2e20b14b5c8d61ae3
+[2026-05-19 09:18:02] [WAF_ALERT] Type: SUSPICIOUS_TLD_PHISHING | Payload: https://redirect.zalo.me/v3/verifyv2/pc?token=OcVooDTmK0Df2_V8qHPGR6q3zhdH7bDiRGZ-kJ4tCm&continue=https%3A%2F%2Fcbjs-not...
+[2026-05-19 09:19:22] [WAF_ALERT] Type: SUSPICIOUS_TLD_PHISHING | Payload: https://siem.finova.one/

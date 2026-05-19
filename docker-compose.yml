@@ -1,0 +1,146 @@
+version: "3.9"
+
+# ==============================================================================
+# SWG Shield — Docker Compose v4.0 (Code Freeze)
+#
+# Services:
+#   gateway       Port 8000 — Main FastAPI Orchestrator (main.py)
+#   fasttext-ai   Port 5001 — FastText AI Server (api_server_fasttext.py)
+#   distilbert-ai Port 5002 — DistilBERT AI Server (api_server_distilbert.py)
+#   report-hitl   Port 5003 — Human-in-the-Loop Report API (api_server_report.py)
+#
+# Zero-Trust API Key: set SWG_API_KEY env in .env or override below
+# Hot-Reload WAF:     curl -X POST http://localhost:8000/api/waf/reload \
+#                          -H "X-API-Key: swg-vnu-is-2026"
+# ==============================================================================
+
+networks:
+  swg-internal:
+    driver: bridge
+
+volumes:
+  # Mount the DistilBERT model weights directory (large files, not in image)
+  distilbert-model:
+    driver: local
+
+services:
+
+  # ── Layer 2: FastText AI Server ─────────────────────────────────────
+  fasttext-ai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: swg-fasttext
+    command: >
+      uvicorn api_server_fasttext:app
+      --host 0.0.0.0
+      --port 5001
+      --workers 2
+    ports:
+      - "5001:5001"
+    networks:
+      - swg-internal
+    volumes:
+      - .:/app            # Dev: live code mount (remove in prod)
+    environment:
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ── Layer 3: DistilBERT AI Server ───────────────────────────────────
+  distilbert-ai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: swg-distilbert
+    command: >
+      uvicorn api_server_distilbert:app
+      --host 0.0.0.0
+      --port 5002
+      --workers 1
+    ports:
+      - "5002:5002"
+    networks:
+      - swg-internal
+    volumes:
+      - .:/app
+      - distilbert-model:/app/scam_detector_distilbert
+    environment:
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5002/health')"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s       # DistilBERT takes longer to load
+    restart: unless-stopped
+
+  # ── Layer 4: HITL Report API ─────────────────────────────────────────
+  report-hitl:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: swg-report
+    command: >
+      uvicorn api_server_report:app
+      --host 0.0.0.0
+      --port 5003
+      --workers 1
+    ports:
+      - "5003:5003"
+    networks:
+      - swg-internal
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5003/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ── Gateway Orchestrator (depends on all AI services) ───────────────
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: swg-gateway
+    command: >
+      uvicorn main:app
+      --host 0.0.0.0
+      --port 8000
+      --workers 2
+    ports:
+      - "8000:8000"
+    networks:
+      - swg-internal
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      # Override localhost URLs to use Docker service names
+      - FASTTEXT_URL=http://fasttext-ai:5001/predict
+      - DISTILBERT_URL=http://distilbert-ai:5002/predict
+      - FASTTEXT_HEALTH=http://fasttext-ai:5001/health
+      - DISTILBERT_HEALTH=http://distilbert-ai:5002/health
+      # Zero-Trust API Key (override with .env in production)
+      - SWG_API_KEY=swg-vnu-is-2026
+    depends_on:
+      fasttext-ai:
+        condition: service_healthy
+      distilbert-ai:
+        condition: service_healthy
+      report-hitl:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped

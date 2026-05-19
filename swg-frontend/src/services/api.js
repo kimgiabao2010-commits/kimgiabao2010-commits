@@ -34,7 +34,10 @@ export const checkDistilBERTHealth = async () => {
 export const scanText = async (text) => {
   const res = await fetch(`${API_BASE_URL}/api/scan`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-Key': 'swg-vnu-is-2026',
+    },
     body: JSON.stringify({ text }),
   });
 
