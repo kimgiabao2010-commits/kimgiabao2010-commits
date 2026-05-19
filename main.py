@@ -291,12 +291,33 @@ async def waf_middleware(request: Request, call_next):
         raw_body = await request.body()
 
         payload_text: str = ""
+        payload_url: str = ""
         try:
             body_json = json.loads(raw_body)
             payload_text = str(body_json.get("text", ""))
+            payload_url = str(body_json.get("url", ""))
         except (json.JSONDecodeError, AttributeError):
             logger.warning("WAF: Không parse được JSON body từ %s", request.client)
 
+        # 1. WAF quét URL trước (để tìm SQLi, XSS, Path Traversal, v.v. trên thanh địa chỉ)
+        if payload_url and payload_url != "None":
+            url_result = waf_engine.inspect(payload_url)
+            if url_result["is_attack"]:
+                attack_type: str = url_result["attack_type"]
+                log_alert(attack_type, payload_url)
+                logger.warning("WAF BLOCKED URL [%s]: %.80s", attack_type, payload_url)
+                return _add_cors(JSONResponse(status_code=403, content={
+                    "status": "BLOCKED_BY_WAF",
+                    "layer": "WAF",
+                    "attack_type": attack_type,
+                    "label": "Blocked",
+                    "score": 1.0,
+                    "latency_ms": 0,
+                    "blocked_url": url_result.get("blocked_url", payload_url),
+                    "detail": f"Phát hiện URL chứa payload tấn công ({attack_type})."
+                }), request)
+
+        # 2. WAF quét Text (nội dung bôi đen)
         if payload_text:
             result = waf_engine.inspect(payload_text)
 

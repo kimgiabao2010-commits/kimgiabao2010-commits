@@ -263,5 +263,45 @@
     "admin_verdict": "safe",
     "verified_at": "2026-05-18T22:36:42.733474",
     "admin_note": ""
+  },
+  {
+    "id": "101a06bf",
+    "url": "https://nic.xyz/",
+    "page_text_preview": "For every website, everywhere® Get your .xyz domain name now www.gen.xyz We are the Registry Operator for .xyz domain names.  We created .xyz to connect Generations X, Y, and Z and to provide choice to internet users around the world. Our goal is to foster entrepreneurship and innovation on the internet to allow internet users around the world to spread their message. As an open and unrestricted namespace, .xyz has hit the reset button on the internet.",
+    "ai_prediction": {
+      "fasttext": {
+        "is_scam": true,
+        "confidence": 97.60013818740845,
+        "prediction": "Scam",
+        "ok": true
+      },
+      "distilbert": null
+    },
+    "user_note": "Người dùng báo cáo AI nhận diện sai từ Warning Banner Extension",
+    "reported_at": "2026-05-18T23:20:34.242692",
+    "status": "verified",
+    "admin_verdict": "scam",
+    "verified_at": "2026-05-18T23:20:57.597617",
+    "admin_note": ""
+  },
+  {
+    "id": "9c469387",
+    "url": "https://nic.xyz/",
+    "page_text_preview": "For every website, everywhere® Get your .xyz domain name now www.gen.xyz We are the Registry Operator for .xyz domain names.  We created .xyz to connect Generations X, Y, and Z and to provide choice to internet users around the world. Our goal is to foster entrepreneurship and innovation on the internet to allow internet users around the world to spread their message. As an open and unrestricted namespace, .xyz has hit the reset button on the internet.",
+    "ai_prediction": {
+      "fasttext": {
+        "is_scam": true,
+        "confidence": 97.60013818740845,
+        "prediction": "Scam",
+        "ok": true
+      },
+      "distilbert": null
+    },
+    "user_note": "Người dùng báo cáo AI nhận diện sai từ Warning Banner Extension",
+    "reported_at": "2026-05-19T08:12:01.629887",
+    "status": "verified",
+    "admin_verdict": "safe",
+    "verified_at": "2026-05-19T08:13:13.320470",
+    "admin_note": ""
   }
 ]
