@@ -77,11 +77,48 @@ const LogBadge = ({ status }) => {
   );
 };
 
+const ConfBar = ({ label, value, layerName }) => {
+  const pct = typeof value === 'number' ? (value * 100).toFixed(1) : null;
+  if (!pct) {
+    return (
+      <div className="flex flex-col gap-1 w-full bg-gray-50/50 p-2.5 border border-gray-100 rounded">
+        <span className="text-[0.55rem] font-bold text-gray-400 uppercase tracking-widest">{layerName}</span>
+        <span className="text-[0.65rem] font-semibold text-gray-400 italic">Not Triggered / Bypassed</span>
+      </div>
+    );
+  }
+
+  const isScam = label?.toLowerCase() === 'scam';
+  const barColor = isScam ? 'bg-rose-500' : 'bg-emerald-500';
+  const textColor = isScam ? 'text-rose-600' : 'text-emerald-600';
+
+  return (
+    <div className="flex flex-col gap-1.5 w-full bg-white p-3 border border-gray-100 rounded shadow-sm">
+      <div className="flex justify-between items-center">
+        <span className="text-[0.55rem] font-bold text-gray-400 uppercase tracking-widest">{layerName}</span>
+        <span className="text-[0.6rem] font-mono font-bold text-gray-500">RISK: {isScam ? pct : (100 - parseFloat(pct)).toFixed(1)}%</span>
+      </div>
+      <div className="flex justify-between items-baseline">
+        <span className="text-[0.65rem] font-bold text-gray-500 uppercase">Verdict:</span>
+        <span className={`text-[0.65rem] font-mono font-extrabold uppercase ${textColor}`}>{label || 'UNKNOWN'}</span>
+      </div>
+      <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden mt-0.5">
+        <div className={`h-full ${barColor} transition-all duration-500`} style={{ width: `${pct}%` }}></div>
+      </div>
+    </div>
+  );
+};
+
 /* ════════════════════════════════════════════════════════
    MAIN DASHBOARD
    ════════════════════════════════════════════════════════ */
 export default function Dashboard() {
   const { stats, history } = useScanStore();
+  const [expandedId, setExpandedId] = React.useState(null);
+
+  const toggleExpand = (id) => {
+    setExpandedId(prev => prev === id ? null : id);
+  };
 
   /* ── All analytics derived from REAL store data only ─ */
   const analytics = useMemo(() => {
@@ -93,12 +130,18 @@ export default function Dashboard() {
       ? ((safe / total) * 100).toFixed(1) + '%'
       : '—';
 
-    // Avg confidence from history entries that have confidence
-    const confidenceValues = history
-      .map(h => h.result?.confidence)
-      .filter(v => typeof v === 'number' && v > 0);
-    const avgConf = confidenceValues.length > 0
-      ? Math.round(confidenceValues.reduce((a, b) => a + b, 0) / confidenceValues.length * 100) + '%'
+    // Tính Scam Risk (tỷ lệ phần trăm nguy hiểm từ 0-100%)
+    const riskValues = history
+      .map(h => {
+        const r = h.result || {};
+        if (r.waf_blocked || r.is_trusted || r.confidence == null) return null;
+        const isThreat = r.blocked || r.fasttext_blocked || r.distilbert_blocked || r.prediction?.toLowerCase() === 'scam';
+        return isThreat ? r.confidence : (1.0 - r.confidence);
+      })
+      .filter(v => typeof v === 'number');
+
+    const avgRisk = riskValues.length > 0
+      ? Math.round(riskValues.reduce((a, b) => a + b, 0) / riskValues.length * 100) + '%'
       : '—';
 
     // Layer-by-layer: count how many requests EACH LAYER processed
@@ -137,27 +180,27 @@ export default function Dashboard() {
         ].filter(d => d.value > 0)
       : [];
 
-    // AI Confidence distribution — split into 3 actionable buckets:
-    // HIGH  >80%  → AI is decisive (BLOCK or PASS with confidence)
-    // MED   40–80% → AI uncertain → needs Human-in-the-Loop review
-    // LOW   <40%  → AI thinks it's safe but borderline
-    let confHigh = 0, confMed = 0, confLow = 0;
-    confidenceValues.forEach(c => {
-      const pct = c * 100;
-      if (pct >= 80)       confHigh++;
-      else if (pct >= 40)  confMed++;
-      else                 confLow++;
+    // Risk distribution — split into 3 actionable buckets:
+    // HIGH  >=75% → Nguy cơ Scam cao
+    // MED   26-74% → Không chắc chắn, cần Admin review
+    // LOW   <=25% → An toàn
+    let riskHigh = 0, riskMed = 0, riskLow = 0;
+    riskValues.forEach(r => {
+      const pct = r * 100;
+      if (pct >= 75)       riskHigh++;
+      else if (pct > 25)   riskMed++;
+      else                 riskLow++;
     });
-    const confTotal = confidenceValues.length;
-    const confData = confTotal > 0
+    const riskTotal = riskValues.length;
+    const riskData = riskTotal > 0
       ? [
-          { name: 'DECISIVE  ≥80%',  value: confHigh, pct: Math.round(confHigh / confTotal * 100), fill: '#1e293b' },
-          { name: 'UNCERTAIN 40–79%', value: confMed,  pct: Math.round(confMed  / confTotal * 100), fill: '#f59e0b' },
-          { name: 'LOW RISK  <40%',  value: confLow,  pct: Math.round(confLow  / confTotal * 100), fill: '#10b981' },
+          { name: 'HIGH RISK (≥ 75%)',  value: riskHigh, pct: Math.round(riskHigh / riskTotal * 100), fill: '#ef4444' }, // Red
+          { name: 'BORDERLINE (26–74%)', value: riskMed,  pct: Math.round(riskMed  / riskTotal * 100), fill: '#f59e0b' }, // Yellow
+          { name: 'LOW RISK (≤ 25%)',  value: riskLow,  pct: Math.round(riskLow  / riskTotal * 100), fill: '#10b981' }, // Green
         ]
       : [];
 
-    return { total, threats, safe, blockedWAF, blockedAI, accuracy, avgConf, verdictData, confData, confTotal, hasData };
+    return { total, threats, safe, blockedWAF, blockedAI, accuracy, avgRisk, verdictData, riskData, riskTotal, hasData };
   }, [stats, history]);
 
   return (
@@ -213,11 +256,11 @@ export default function Dashboard() {
           dim={analytics.total === 0}
         />
         <MetricCard
-          title="Avg AI Confidence"
-          value={analytics.avgConf}
-          sub={analytics.avgConf !== '—' ? 'FROM SCAN RESULTS' : 'NO DATA YET'}
-          icon={TerminalSquare}
-          dim={analytics.avgConf === '—'}
+          title="Avg Scam Risk"
+          value={analytics.avgRisk}
+          sub={analytics.avgRisk !== '—' ? 'NETWORK AVERAGE' : 'NO DATA YET'}
+          icon={Target}
+          dim={analytics.avgRisk === '—'}
         />
       </div>
 
@@ -270,27 +313,27 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* AI Confidence Distribution */}
+        {/* AI Scam Risk Distribution */}
         <div className="col-span-1 lg:col-span-2 bg-white border border-gray-200/80 p-8 flex flex-col">
           <h2 className="text-[0.65rem] font-bold text-gray-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-            <Brain size={13} strokeWidth={1.5} /> AI CONFIDENCE ANALYSIS
+            <Brain size={13} strokeWidth={1.5} /> SCAM RISK ANALYSIS
           </h2>
 
-          {analytics.confTotal > 0 ? (
+          {analytics.riskTotal > 0 ? (
             <div className="flex flex-col gap-6 flex-1">
 
-              {/* Avg conf + total */}
+              {/* Avg risk + total */}
               <div className="grid grid-cols-3 gap-4">
                 <div className="col-span-1 bg-gray-50 border border-gray-100 p-4 flex flex-col gap-1">
-                  <span className="text-[0.6rem] font-bold text-gray-400 uppercase tracking-widest">AVG CONFIDENCE</span>
-                  <span className="text-2xl font-black text-gray-900 tracking-tighter">{analytics.avgConf}</span>
-                  <span className="text-[0.58rem] text-gray-400">{analytics.confTotal} predictions analyzed</span>
+                  <span className="text-[0.6rem] font-bold text-gray-400 uppercase tracking-widest">AVG SCAM RISK</span>
+                  <span className="text-2xl font-black text-gray-900 tracking-tighter">{analytics.avgRisk}</span>
+                  <span className="text-[0.58rem] text-gray-400">{analytics.riskTotal} predictions analyzed</span>
                 </div>
                 <div className="col-span-2 grid grid-cols-3 gap-3">
                   {[
-                    { label: 'DECISIVE', sub: '≥ 80% conf', val: analytics.confData[0]?.value ?? 0, pct: analytics.confData[0]?.pct ?? 0, accent: 'border-t-2 border-gray-900' },
-                    { label: 'UNCERTAIN', sub: '40–79% conf', val: analytics.confData[1]?.value ?? 0, pct: analytics.confData[1]?.pct ?? 0, accent: 'border-t-2 border-amber-500' },
-                    { label: 'LOW RISK', sub: '< 40% conf',  val: analytics.confData[2]?.value ?? 0, pct: analytics.confData[2]?.pct ?? 0, accent: 'border-t-2 border-emerald-500' },
+                    { label: 'HIGH RISK', sub: '≥ 75% risk', val: analytics.riskData[0]?.value ?? 0, pct: analytics.riskData[0]?.pct ?? 0, accent: 'border-t-2 border-rose-500' },
+                    { label: 'BORDERLINE', sub: '26–74% risk', val: analytics.riskData[1]?.value ?? 0, pct: analytics.riskData[1]?.pct ?? 0, accent: 'border-t-2 border-amber-500' },
+                    { label: 'LOW RISK', sub: '≤ 25% risk',  val: analytics.riskData[2]?.value ?? 0, pct: analytics.riskData[2]?.pct ?? 0, accent: 'border-t-2 border-emerald-500' },
                   ].map(s => (
                     <div key={s.label} className={`bg-gray-50 border border-gray-100 p-4 flex flex-col gap-1 ${s.accent}`}>
                       <span className="text-[0.58rem] font-bold text-gray-400 uppercase tracking-widest">{s.label}</span>
@@ -303,7 +346,7 @@ export default function Dashboard() {
 
               {/* Bar breakdown */}
               <div className="flex flex-col gap-3 flex-1 justify-center">
-                {analytics.confData.map((row, i) => (
+                {analytics.riskData.map((row, i) => (
                   <div key={i} className="flex flex-col gap-1.5">
                     <div className="flex justify-between items-end">
                       <span className="text-[0.62rem] font-bold text-gray-500 uppercase tracking-widest">{row.name}</span>
@@ -320,17 +363,17 @@ export default function Dashboard() {
               </div>
 
               {/* HITL hint */}
-              {analytics.confData[1]?.value > 0 && (
+              {analytics.riskData[1]?.value > 0 && (
                 <div className="mt-2 p-3 bg-amber-50 border border-amber-200/50 text-[0.62rem] font-bold text-amber-700 uppercase tracking-wider">
-                  {analytics.confData[1].value} CAS KHÔNG CHẮC CHẮN (40–79%) — XEM XÉT TẠI TRANG KIỂM ĐỊNH AI
+                  QUÁ TRÌNH KIỂM KIỂU {analytics.riskData[1].value} CAS KHÔNG RÕ RÀNG (26–74%) — CẦN ADMIN DUYỆT TỰ CÔNG
                 </div>
               )}
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-gray-300 gap-3 min-h-[220px]">
               <Brain size={28} strokeWidth={1} />
-              <p className="text-[0.65rem] font-bold uppercase tracking-widest text-gray-400">NO PREDICTION DATA</p>
-              <p className="text-[0.6rem] text-gray-400 text-center">Biểu đồ phân tích độ tự tin AI sẽ hiện<br />khi Extension gửi kết quả quét về đây.</p>
+              <p className="text-[0.65rem] font-bold uppercase tracking-widest text-gray-400">NO RISK DATA</p>
+              <p className="text-[0.6rem] text-gray-400 text-center">Biểu đồ phân tích độ rủi ro sẽ hiện<br />khi Extension gửi kết quả quét về đây.</p>
             </div>
           )}
         </div>
@@ -372,7 +415,7 @@ export default function Dashboard() {
                   <tr className="border-b border-gray-100 text-[0.65rem] uppercase tracking-widest text-gray-400 font-bold">
                     <th className="pb-3 pr-4">Payload Snapshot</th>
                     <th className="pb-3 px-4 text-center">Layer</th>
-                    <th className="pb-3 px-4 text-center">Confidence</th>
+                    <th className="pb-3 px-4 text-center">Risk Score</th>
                     <th className="pb-3 px-4 text-center">Verdict</th>
                     <th className="pb-3 pl-4 text-right">Time</th>
                   </tr>
@@ -380,44 +423,129 @@ export default function Dashboard() {
                 <tbody className="divide-y divide-gray-50">
                   {history.slice(0, 7).map((log, idx) => {
                     const r     = log.result || {};
-                    const isWaf = r.blocked || r.waf_blocked;
+                    const isThreat = r.blocked || r.waf_blocked || r.prediction?.toLowerCase() === 'scam' || r.prediction?.toLowerCase() === 'attack';
                     let layer = "UNKNOWN";
                     if (r.layer_info) {
                         layer = r.layer_info;
                     } else {
-                        layer = isWaf ? 'WAF' : (r.distilbert_blocked !== undefined ? 'DISTILBERT' : 'FASTTEXT');
+                        layer = r.waf_blocked ? 'WAF' : (r.distilbert_blocked !== undefined ? 'DISTILBERT' : 'FASTTEXT');
                     }
-                    const status = (r.final_blocked || isWaf || r.fasttext_blocked || r.distilbert_blocked)
-                      ? (isWaf ? 'ATTACK' : 'SCAM')
-                      : 'SAFE';
+                    const status = isThreat ? (r.waf_blocked ? 'ATTACK' : 'SCAM') : 'SAFE';
                       
                     let confDisplay = '—';
-                    if (layer === 'TRUSTED_CITATION' || layer === 'TRUSTED_DOMAIN') {
+                    if (r.waf_blocked) {
+                        confDisplay = '100%';
+                    } else if (r.is_trusted || layer === 'TRUSTED_CITATION' || layer === 'TRUSTED_DOMAIN') {
                         confDisplay = 'BYPASS';
                     } else if (r.confidence != null) {
-                        confDisplay = Math.round(r.confidence * 100) + '%';
+                        // Tính Risk Score
+                        const risk = isThreat ? Math.round(r.confidence * 100) : Math.round((1.0 - r.confidence) * 100);
+                        confDisplay = `${risk}%`;
                     }
 
+                    const isExpanded = expandedId === log.id;
+
+                    // Extract model data
+                    const ftData = r.fasttext || {};
+                    const dbData = r.distilbert || {};
+                    const patternEngine = r.pattern_engine || {};
+
+                    const ftConf = ftData.confidence != null ? ftData.confidence : (ftData.probability != null ? ftData.probability : null);
+                    const dbConf = dbData.confidence_score != null ? dbData.confidence_score / 100 : (dbData.confidence != null ? dbData.confidence : null);
+
                     return (
-                      <tr key={log.id || idx} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="py-3.5 pr-4 max-w-[220px]">
-                          <span className="text-xs font-medium text-gray-700 truncate block" title={log.text}>{log.text}</span>
-                        </td>
-                        <td className="py-3.5 px-4 text-center">
-                          <span className="text-[0.6rem] font-mono font-bold text-gray-400 tracking-widest">{layer}</span>
-                        </td>
-                        <td className="py-3.5 px-4 text-center">
-                          <span className="text-[0.65rem] font-mono font-bold text-gray-500">{confDisplay}</span>
-                        </td>
-                        <td className="py-3.5 px-4 text-center">
-                          <LogBadge status={status} />
-                        </td>
-                        <td className="py-3.5 pl-4 text-right">
-                          <span className="text-[0.65rem] text-gray-400 font-mono font-bold">
-                            {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                          </span>
-                        </td>
-                      </tr>
+                      <React.Fragment key={log.id || idx}>
+                        <tr 
+                          onClick={() => toggleExpand(log.id)}
+                          className={`hover:bg-gray-50/50 transition-colors cursor-pointer group ${isExpanded ? 'bg-gray-50/30' : ''}`}
+                        >
+                          <td className="py-3.5 pr-4 max-w-[220px]">
+                            <span className="text-xs font-semibold text-gray-700 truncate block" title={log.text}>{log.text}</span>
+                          </td>
+                          <td className="py-3.5 px-4 text-center">
+                            <span className="text-[0.6rem] font-mono font-bold text-gray-400 tracking-widest">{layer}</span>
+                          </td>
+                          <td className="py-3.5 px-4 text-center">
+                            <span className="text-[0.65rem] font-mono font-bold text-gray-500">{confDisplay}</span>
+                          </td>
+                          <td className="py-3.5 px-4 text-center">
+                            <LogBadge status={status} />
+                          </td>
+                          <td className="py-3.5 pl-4 text-right flex items-center justify-end gap-2.5">
+                            <span className="text-[0.65rem] text-gray-400 font-mono font-bold">
+                              {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            </span>
+                            <span className="text-[0.6rem] font-bold text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {isExpanded ? '▲' : '▼'}
+                            </span>
+                          </td>
+                        </tr>
+
+                        {isExpanded && (
+                          <tr>
+                            <td colSpan="5" className="p-0 border-b border-gray-100 bg-[#FAFAFC]">
+                              <div className="px-6 py-5 border-t border-gray-100 flex flex-col gap-4">
+                                
+                                {/* Side-by-side Layer bars */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  <ConfBar 
+                                    layerName="FastText Layer"
+                                    label={ftData.prediction}
+                                    value={ftConf}
+                                  />
+                                  <ConfBar 
+                                    layerName="DistilBERT Layer"
+                                    label={dbData.prediction}
+                                    value={dbConf}
+                                  />
+
+                                  {/* Pattern Engine Box */}
+                                  <div className="flex flex-col gap-1.5 w-full bg-white p-3 border border-gray-100 rounded shadow-sm">
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-[0.55rem] font-bold text-gray-400 uppercase tracking-widest">Rule-Based Patterns</span>
+                                      <span className={`text-[0.6rem] font-mono font-bold ${patternEngine.is_scam ? 'text-rose-500' : 'text-gray-400'}`}>
+                                        {patternEngine.risk_score || 0}/100 PTS
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between items-baseline">
+                                      <span className="text-[0.65rem] font-bold text-gray-500 uppercase">Status:</span>
+                                      <span className={`text-[0.65rem] font-mono font-extrabold uppercase ${patternEngine.is_scam ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                        {patternEngine.is_scam ? 'SCAM FOUND' : 'CLEARED'}
+                                      </span>
+                                    </div>
+
+                                    {patternEngine.matched_rules && patternEngine.matched_rules.length > 0 ? (
+                                      <div className="mt-1 text-[0.6rem] font-mono text-rose-600 bg-rose-50/50 p-1.5 border border-rose-100 rounded leading-relaxed max-h-[60px] overflow-y-auto">
+                                        {patternEngine.matched_rules.map((rule, ri) => (
+                                          <div key={ri}>• {rule}</div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <div className="mt-1 text-[0.6rem] italic text-gray-400 p-1.5 bg-gray-50/30 rounded border border-gray-100 text-center">
+                                        No threat signatures matched
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Extracted text preview block */}
+                                <div>
+                                  <span className="text-[0.55rem] font-bold text-gray-400 uppercase tracking-widest block mb-1">Extracted Payload Preview</span>
+                                  <div className="bg-white p-3 font-mono text-[0.65rem] text-gray-600 whitespace-pre-wrap break-words border border-gray-150 rounded leading-relaxed max-h-[120px] overflow-y-auto">
+                                    {log.text}
+                                  </div>
+                                </div>
+
+                                {r.override_reason && (
+                                  <div className="p-2.5 bg-amber-50 border border-amber-100 rounded text-[0.65rem] text-amber-800 font-mono">
+                                    <strong>⚠️ Pipeline Override:</strong> Escaped detection overridden. Reason: {r.override_reason}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     );
                   })}
 

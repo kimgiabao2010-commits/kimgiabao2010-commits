@@ -1,5 +1,5 @@
 """
-waf/modsec_rules_set.py
+waf/waf_rules_set.py
 -----------------------
 OWASP Core Rule Set (CRS) v4.0 — Layer 1 WAF.
 
@@ -25,12 +25,12 @@ def _c(pattern: str) -> "re.Pattern[str]":
     return re.compile(pattern, re.IGNORECASE)
 
 # ---------------------------------------------------------------------------
-# MODSEC_RULES
+# WAF_RULES
 # key   : tên attack_type (giữ nguyên để waf_engine.py & waf_middleware.py dùng)
 # value : list[re.Pattern] — top patterns trích từ CRS, sắp xếp theo hiệu suất
 # ---------------------------------------------------------------------------
 
-MODSEC_RULES: Dict[str, "List[re.Pattern[str]]"] = {
+WAF_RULES: Dict[str, "List[re.Pattern[str]]"] = {
 
     # -----------------------------------------------------------------------
     # OWASP_LFI — Local File Inclusion & Path Traversal

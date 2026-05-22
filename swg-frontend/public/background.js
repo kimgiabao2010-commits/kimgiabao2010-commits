@@ -20,6 +20,12 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
         console.log("🕵️ Đang quét mục tiêu:", targetText);
 
+        // FIX 1: Hiển thị loading spinner ngay lập tức
+        chrome.tabs.sendMessage(tab.id, {
+            action: "show_loading",
+            text: targetText
+        });
+
         try {
             // Send request to Central Gateway (Port 8000)
             const res = await fetch("http://localhost:8000/api/scan", {
@@ -33,20 +39,28 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
                 fasttext: result.fasttext || null, 
                 distilbert: result.distilbert || null,
                 layer: result.layer || null,
-                detail: result.detail || ""
+                detail: result.detail || "",
+                status: result.status || null,
+                label: result.label || null,
+                score: (result.score != null) ? result.score : null,
+                waf_blocked: result.status === "BLOCKED_BY_WAF" || result.layer === "WAF",
+                attack_type: result.attack_type || null,
+                page_url_flagged: result.page_url_flagged || false,
+                page_attack_type: result.page_attack_type || null,
+                degraded: result.degraded || false,
+                pattern_engine: result.pattern_engine || null,
+                override_reason: result.override_reason || null,
             };
             
-            // Extract malicious status from central gateway result
+            // Extract malicious status — use result.label as primary signal
             let isMalicious = false;
             if (result.status === "BLOCKED_BY_WAF") {
                 isMalicious = true;
-            } else if (result.distilbert && result.distilbert.is_scam) {
-                isMalicious = true;
-            } else if (result.fasttext && result.fasttext.prediction === 'Scam' && !result.distilbert) {
+            } else if (result.label === "Scam") {
                 isMalicious = true;
             }
 
-            // Gửi dữ liệu xuống content.js để hiển thị (vẽ Banner nếu lừa đảo/độc hại)
+            // Gửi dữ liệu xuống content.js để hiển thị (thay loading bằng kết quả thật)
             chrome.tabs.sendMessage(tab.id, {
                 action: "show_result",
                 text: targetText,
@@ -55,13 +69,18 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
                 layer: result.layer || null
             });
 
-            // Đồng thời bắn tín hiệu sang tab Admin Dashboard (localhost:5173) nếu đang mở
-            chrome.tabs.query({ url: "http://localhost:5173/*" }, (tabs) => {
+            // FIX 2: Luôn gửi log thẳng lên backend (không phụ thuộc dashboard đang mở hay không)
+            _postScanLog(targetText, aiData, isMalicious);
+
+            // Đồng thời bắn tín hiệu sang tab Admin Dashboard nếu đang mở
+            chrome.tabs.query({}, (tabs) => {
                 tabs.forEach(t => {
-                    chrome.tabs.sendMessage(t.id, {
-                        action: "dashboard_log",
-                        data: { text: targetText, aiData: aiData, isMalicious: isMalicious }
-                    });
+                    if (t.url && (t.url.includes("localhost:5173") || t.url.includes("127.0.0.1:5173"))) {
+                        chrome.tabs.sendMessage(t.id, {
+                            action: "dashboard_log",
+                            data: { text: targetText, aiData: aiData, isMalicious: isMalicious }
+                        });
+                    }
                 });
             });
 
@@ -78,6 +97,26 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         }
     }
 });
+
+// FIX 2: Gửi log scan về backend (fire-and-forget, không chặn UI)
+function _postScanLog(text, aiData, isMalicious) {
+    fetch("http://localhost:8000/api/scan-log", {
+        method: "POST",
+        headers: { ...SWG_GATEWAY_HEADERS },
+        body: JSON.stringify({
+            text: text,
+            is_malicious: isMalicious,
+            layer: aiData?.layer || null,
+            label: isMalicious ? "Scam" : "Legit",
+            score: aiData?.score ?? null,
+            fasttext: aiData?.fasttext || null,
+            distilbert: aiData?.distilbert || null,
+            waf_blocked: aiData?.waf_blocked || false,
+            attack_type: aiData?.attack_type || null,
+            pattern_engine: aiData?.pattern_engine || null,
+        })
+    }).catch(() => {}); // Im lặng nếu server down
+}
 
 // WAF Layer 1 — Kiểm tra URL khi điều hướng (Port 8000)
 chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
@@ -104,17 +143,46 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
         let aiData = { 
             fasttext: result.fasttext || null, 
             distilbert: result.distilbert || null,
-            layer: result.layer || "WAF",
-            detail: result.detail || ""
+            layer: result.layer || null,
+            detail: result.detail || "",
+            status: result.status || null,
+            label: result.label || null,
+            score: (result.score != null) ? result.score : null,
+            waf_blocked: result.status === "BLOCKED_BY_WAF" || result.layer === "WAF",
+            attack_type: result.attack_type || null,
+            page_url_flagged: result.page_url_flagged || false,
+            page_attack_type: result.page_attack_type || null,
+            degraded: result.degraded || false,
+            pattern_engine: result.pattern_engine || null,
+            override_reason: result.override_reason || null,
         };
 
-        // Gửi log URL Scan về Dashboard
-        chrome.tabs.query({ url: "http://localhost:5173/*" }, (tabs) => {
+        // BUG FIX #9: Hiển thị banner cảnh báo cho người dùng khi URL bị WAF chặn
+        if (isMalicious && details.tabId) {
+            // Đợi tab load xong một chút rồi inject banner
+            setTimeout(() => {
+                chrome.tabs.sendMessage(details.tabId, {
+                    action: "show_result",
+                    text: details.url,
+                    aiData: aiData,
+                    isMalicious: true,
+                    layer: result.layer || "WAF"
+                }).catch(() => {});
+            }, 800);
+        }
+
+        // FIX 2: Luôn gửi log URL scan lên backend
+        _postScanLog(`[URL SCAN] ${details.url}`, aiData, isMalicious);
+
+        // BUG FIX #1: Gửi log URL Scan về Dashboard — hỗ trợ cả localhost và 127.0.0.1
+        chrome.tabs.query({}, (tabs) => {
             tabs.forEach(t => {
-                chrome.tabs.sendMessage(t.id, {
-                    action: "dashboard_log",
-                    data: { text: `[URL SCAN] ${details.url}`, aiData: aiData, isMalicious: isMalicious }
-                });
+                if (t.url && (t.url.includes("localhost:5173") || t.url.includes("127.0.0.1:5173"))) {
+                    chrome.tabs.sendMessage(t.id, {
+                        action: "dashboard_log",
+                        data: { text: `[URL SCAN] ${details.url}`, aiData: aiData, isMalicious: isMalicious }
+                    });
+                }
             });
         });
 
@@ -122,6 +190,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
         // Server WAF có thể đang tắt — im lặng
     }
 });
+
 
 // Xử lý gửi báo cáo cho Admin và bắt đầu polling chờ phản hồi
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

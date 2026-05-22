@@ -1,0 +1,26 @@
+=== SO SÁNH CONFIDENCE: 3 EPOCH VS 30 EPOCH ===
+
+Text: Công ty TNHH TekCore tuyển dụng lập trình viên. Yêu cầu: Kinh nghiệm 1 năm. Làm ...
+Ground Truth: Legit
+3 Epoch : Scam (93.69%)
+30 Epoch: Scam (93.65%)
+
+Text: Khách hàng trúng thưởng quà tặng ý nghĩa 1 xe SH và 2 lượng vàng SJC, liên hệ tổ...
+Ground Truth: Scam
+3 Epoch : Scam (96.58%)
+30 Epoch: Scam (96.01%)
+
+Text: Tuyển dụng nhân viên làm thêm tại nhà, chỉ cần xem video TikTok, nhận lương ngày...
+Ground Truth: Scam
+3 Epoch : Scam (93.95%)
+30 Epoch: Scam (90.90%)
+
+Text: Kính mời anh chị tới dự lễ khai trương chi nhánh mới của cửa hàng mỹ phẩm ABC....
+Ground Truth: Legit
+3 Epoch : Scam (59.80%)
+30 Epoch: Scam (52.26%)
+
+Text: Tài khoản ngân hàng của bạn đang bị khóa do nghi ngờ giao dịch bất hợp pháp. Vui...
+Ground Truth: Scam
+3 Epoch : Scam (57.62%)
+30 Epoch: Scam (56.26%)

@@ -1,7 +1,26 @@
 console.log("🛡️ SWG Content Script V2 đã được tải! Hãy bôi đen chữ và chọn 'Quét bằng SWG Shield' ở menu chuột phải.");
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === "show_result") {
+    if (request.action === "show_loading") {
+        // FIX 1: Hiển thị spinner ngay khi bấm quét
+        injectStyles();
+        const old = document.getElementById("swg-warning-banner");
+        if (old) old.remove();
+        const banner = document.createElement("div");
+        banner.id = "swg-warning-banner";
+        banner.className = "swg-banner-wrapper swg-banner-safe";
+        banner.style.borderLeft = "4px solid #3b82f6";
+        let preview = request.text.length > 80 ? request.text.substring(0, 80) + "..." : request.text;
+        banner.innerHTML =
+            '<div class="swg-banner-header">' +
+                '<div class="swg-banner-title" style="color:#3b82f6">⏳ ĐANG PHÂN TÍCH...</div>' +
+                '<div class="swg-banner-meta">SWG AI PIPELINE</div>' +
+            '</div>' +
+            '<div style="font-size:12px;color:#64748b;margin-bottom:10px;font-family:monospace;">WAF → FastText → DistilBERT đang xử lý...</div>' +
+            '<div class="swg-banner-content"><span style="font-style:italic;color:#94a3b8">"' + preview + '"</span></div>';
+        document.body.appendChild(banner);
+
+    } else if (request.action === "show_result") {
         if (request.error) {
             alert("❌ Lỗi: Không thể kết nối tới máy chủ quét SWG.");
             return;
@@ -9,7 +28,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (request.isMalicious) {
             drawWarningBanner(request.text, request.aiData);
         } else {
-            drawSuccessBanner(request.text, request.layer);
+            drawSuccessBanner(request.text, request.aiData);
         }
 
     } else if (request.action === "dashboard_log") {
@@ -121,49 +140,97 @@ function injectStyles() {
     document.head.appendChild(style);
 }
 
-function drawSuccessBanner(text, layer) {
+function drawSuccessBanner(text, aiData) {
     injectStyles();
     const oldBanner = document.getElementById("swg-warning-banner");
     if (oldBanner) oldBanner.remove();
 
     const banner = document.createElement("div");
     banner.id = "swg-warning-banner";
-    banner.className = "swg-banner-wrapper swg-banner-safe";
 
-    let msg = "ANALYSIS COMPLETE: NO THREAT DETECTED";
-    let detail = "System cleared the payload.";
-    if (layer === "TRUSTED_CITATION") {
+    // Context: page URL was flagged by WAF (casino, betting, phishing) even if AI said safe
+    const isContextWarn = aiData && aiData.page_url_flagged;
+    const isDegraded = aiData && aiData.degraded;
+
+    if (isContextWarn) {
+        banner.className = "swg-banner-wrapper swg-banner-scam";
+    } else {
+        banner.className = "swg-banner-wrapper swg-banner-safe";
+    }
+
+    let msg, statusLabel, detail;
+
+    if (isContextWarn) {
+        msg = "CAUTION: TEXT FROM SUSPICIOUS PAGE";
+        statusLabel = "STATUS: CONTEXT RISK";
+        const attackType = aiData.page_attack_type || "MALICIOUS_DOMAIN";
+        let ftConf = aiData.fasttext ? (aiData.fasttext.confidence * 100).toFixed(1) : null;
+        let aiLine = ftConf ? "FastText: " + ftConf + "%" : "FastText: N/A";
+        if (aiData.distilbert) {
+            aiLine += " | DistilBERT: " + aiData.distilbert.confidence_score.toFixed(1) + "%";
+        }
+        detail = "Page URL flagged by WAF [" + attackType + "]. Text may be misleading despite AI classification. " + aiLine;
+    } else if (isDegraded) {
+        msg = "ANALYSIS COMPLETE: NO THREAT DETECTED";
+        statusLabel = "STATUS: DEGRADED";
+        detail = "WARNING: AI engine unavailable. Only WAF layer checked. Treat with caution.";
+    } else if (aiData && aiData.layer === "TRUSTED_CITATION") {
+        msg = "ANALYSIS COMPLETE: NO THREAT DETECTED";
+        statusLabel = "STATUS: SAFE";
         detail = "Bypassed AI analysis: Payload contains trusted media citation.";
-    } else if (layer === "TRUSTED_DOMAIN") {
+    } else if (aiData && aiData.layer === "TRUSTED_DOMAIN") {
+        msg = "ANALYSIS COMPLETE: NO THREAT DETECTED";
+        statusLabel = "STATUS: SAFE";
         detail = "Bypassed AI analysis: Origin domain is whitelisted.";
+    } else {
+        msg = "ANALYSIS COMPLETE: NO THREAT DETECTED";
+        statusLabel = "STATUS: SAFE";
+        let parts = [];
+        if (aiData && aiData.fasttext && aiData.fasttext.confidence != null) {
+            let ftConf = (aiData.fasttext.confidence * 100).toFixed(1);
+            parts.push("FastText: " + ftConf + "%");
+        }
+        if (aiData && aiData.distilbert && aiData.distilbert.confidence_score != null) {
+            parts.push("DistilBERT: " + aiData.distilbert.confidence_score.toFixed(1) + "%");
+        }
+        if (parts.length > 0) {
+            detail = "AI Confidence — " + parts.join(" | ");
+        } else if (aiData && aiData.score != null) {
+            // fallback: use pipeline score from backend
+            let layerLabel = aiData.layer || "AI";
+            detail = "AI Confidence — " + layerLabel + ": " + (aiData.score * 100).toFixed(1) + "%";
+        } else {
+            detail = "System cleared the payload.";
+        }
     }
 
     let previewText = text.length > 150 ? text.substring(0, 150) + '...' : text;
+    const titleClass = isContextWarn ? "swg-text-scam" : "swg-text-safe";
 
-    banner.innerHTML = `
-        <div class="swg-banner-header">
-            <div class="swg-banner-title swg-text-safe">${msg}</div>
-            <div class="swg-banner-meta">STATUS: SAFE</div>
-        </div>
-        <div style="font-size: 13px; color: #94a3b8; margin-bottom: 12px;">${detail}</div>
-        <div class="swg-banner-content">
-            <span style="font-style: italic;">"${previewText}"</span>
-        </div>
-        <div class="swg-banner-actions">
-            <button id="swg-close-btn" class="swg-btn swg-btn-outline">DISMISS</button>
-        </div>
-    `;
-    
+    banner.innerHTML =
+        '<div class="swg-banner-header">' +
+            '<div class="swg-banner-title ' + titleClass + '">' + msg + '</div>' +
+            '<div class="swg-banner-meta">' + statusLabel + '</div>' +
+        '</div>' +
+        '<div style="font-size: 13px; color: #94a3b8; margin-bottom: 12px; font-family: monospace;">' + detail + '</div>' +
+        '<div class="swg-banner-content">' +
+            '<span style="font-style: italic;">"' + previewText + '"</span>' +
+        '</div>' +
+        '<div class="swg-banner-actions">' +
+            '<button id="swg-close-btn" class="swg-btn swg-btn-outline">DISMISS</button>' +
+        '</div>';
+
     document.body.appendChild(banner);
 
     document.getElementById("swg-close-btn").addEventListener("click", () => banner.remove());
-    
+
     setTimeout(() => {
         if (document.getElementById("swg-warning-banner")) {
             document.getElementById("swg-warning-banner").remove();
         }
-    }, 5000);
+    }, isContextWarn ? 10000 : 6000);
 }
+
 
 function drawWarningBanner(text, aiData) {
     injectStyles();
@@ -174,11 +241,27 @@ function drawWarningBanner(text, aiData) {
     banner.id = "swg-warning-banner";
     banner.className = "swg-banner-wrapper swg-banner-scam";
     
-    let ftConf = aiData.fasttext ? (aiData.fasttext.confidence * 100).toFixed(1) : 0;
-    let detail = `AI Confidence - FastText: ${ftConf}%`;
-    
-    if (aiData.distilbert) {
-        detail += ` | DistilBERT: ${aiData.distilbert.confidence_score.toFixed(1)}%`;
+    let detail = "";
+    if (aiData && (aiData.waf_blocked || aiData.layer === "WAF" || aiData.status === "BLOCKED_BY_WAF")) {
+        detail = "WAF Threat Level: 100% | Threat: " + (aiData.attack_type || 'Suspicious TLD/Phishing');
+    } else {
+        let parts = [];
+        if (aiData && aiData.fasttext && aiData.fasttext.confidence != null) {
+            parts.push("FastText: " + (aiData.fasttext.confidence * 100).toFixed(1) + "%");
+        }
+        if (aiData && aiData.distilbert && aiData.distilbert.confidence_score != null) {
+            parts.push("DistilBERT: " + aiData.distilbert.confidence_score.toFixed(1) + "%");
+        }
+        if (parts.length > 0) {
+            detail = "AI Confidence — " + parts.join(" | ");
+        } else if (aiData && aiData.score != null) {
+            let layerLabel = aiData.layer || "AI";
+            detail = "AI Confidence — " + layerLabel + ": " + (aiData.score * 100).toFixed(1) + "%";
+        }
+        // Pattern engine override info
+        if (aiData && aiData.pattern_engine && aiData.pattern_engine.is_scam) {
+            detail += " | Rule Engine: " + aiData.pattern_engine.risk_score + "/100 pts";
+        }
     }
 
     let previewText = text.length > 200 ? text.substring(0, 200) + '...' : text;

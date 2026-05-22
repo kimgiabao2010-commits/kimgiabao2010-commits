@@ -4,7 +4,7 @@ waf/waf_engine.py
 Core Logic — WafEngine class.
 
 Task 3 update: Rules now loaded from waf_rules.json (hot-reloadable).
-Falls back to modsec_rules_set.py if JSON is missing/invalid.
+Falls back to waf_rules_set.py if JSON is missing/invalid.
 """
 
 from __future__ import annotations
@@ -70,18 +70,28 @@ def _load_rules_from_json(path: str) -> Optional[Dict[str, List[re.Pattern]]]:
         logger.info("WAF: Loaded %d rule groups from %s", len(compiled), path)
         return compiled
     except FileNotFoundError:
-        logger.warning("WAF: waf_rules.json not found at %s — falling back to modsec_rules_set.py", path)
-        return None
+        logger.warning("WAF: waf_rules.json not found at %s. Auto-generating it from fallback rules...", path)
+        from waf.waf_rules_set import WAF_RULES  # type: ignore
+        raw_rules = {}
+        for attack_type, compiled_list in WAF_RULES.items():
+            raw_rules[attack_type] = [pattern.pattern for pattern in compiled_list]
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(raw_rules, f, indent=4, ensure_ascii=False)
+            logger.info("WAF: Successfully created waf_rules.json")
+        except Exception as exc:
+            logger.error("WAF: Failed to auto-generate waf_rules.json: %s", exc)
+        return WAF_RULES
     except Exception as exc:
         logger.error("WAF: Failed to load waf_rules.json: %s", exc)
         return None
 
 
 def _load_fallback_rules() -> Dict[str, List[re.Pattern]]:
-    """Load compiled rules from the hardcoded modsec_rules_set.py."""
-    from waf.modsec_rules_set import MODSEC_RULES  # type: ignore
-    logger.info("WAF: Using fallback rules from modsec_rules_set.py")
-    return MODSEC_RULES
+    """Load compiled rules from the hardcoded waf_rules_set.py."""
+    from waf.waf_rules_set import WAF_RULES  # type: ignore
+    logger.info("WAF: Using fallback rules from waf_rules_set.py")
+    return WAF_RULES
 
 
 def check_url_security(url: str) -> dict:
@@ -125,7 +135,7 @@ class WafEngine:
         new_rules = _load_rules_from_json(_WAF_RULES_PATH)
         if new_rules is None:
             new_rules = _load_fallback_rules()
-            source = "modsec_rules_set.py (fallback)"
+            source = "waf_rules_set.py (fallback)"
         else:
             source = _WAF_RULES_PATH
 
@@ -181,7 +191,7 @@ class WafEngine:
         """Tách tất cả URL có trong chuỗi văn bản."""
         return _URL_EXTRACTOR.findall(text)
 
-    def inspect(self, payload: str) -> dict:
+    def inspect(self, payload: str, exclude_heuristic: bool = False) -> dict:
         """Kiểm tra payload qua toàn bộ WAF pipeline."""
         if not isinstance(payload, str):
             payload = str(payload)
@@ -206,6 +216,16 @@ class WafEngine:
                         "blocked_url": None,
                         "normalized": normalized[:200],
                     }
+
+        if exclude_heuristic:
+            return {
+                "is_attack": False,
+                "attack_type": None,
+                "matched_pattern": None,
+                "urls_found": [],
+                "blocked_url": None,
+                "normalized": normalized[:200],
+            }
 
         # Tách URL và Phân tích Heuristic
         urls_found = self.extract_urls(payload)

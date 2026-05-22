@@ -67,3 +67,19 @@ export const fetchServerLogs = async () => {
   if (!res.ok) throw new Error('Failed to fetch logs');
   return res.json();
 };
+
+/**
+ * Poll scan logs từ backend /api/scan-log.
+ * Dữ liệu được Extension gửi lên mỗi lần scan,
+ * nên Dashboard có thể lấy lại kể cả khi tab đã đóng.
+ */
+export const fetchScanLogs = async (limit = 100) => {
+  const res = await fetch(`${API_BASE_URL}/api/scan-log?limit=${limit}`, {
+    method: 'GET',
+    headers: {
+      'X-API-Key': 'swg-vnu-is-2026',
+    },
+  });
+  if (!res.ok) throw new Error('Failed to fetch scan logs');
+  return res.json();
+};

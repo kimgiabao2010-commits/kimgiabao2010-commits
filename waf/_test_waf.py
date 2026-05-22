@@ -2,11 +2,11 @@
 import sys
 sys.path.insert(0, "d:/vscode")
 
-from waf.modsec_rules_set import MODSEC_RULES
+from waf.waf_rules_set import WAF_RULES
 from waf.waf_engine import WafEngine
 from waf.waf_logger import log_alert
 
-print("=== Rules loaded:", list(MODSEC_RULES.keys()))
+print("=== Rules loaded:", list(WAF_RULES.keys()))
 
 engine = WafEngine()
 

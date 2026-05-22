@@ -4,13 +4,13 @@ import fasttext
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report
 
-FILE_NAME = 'csv/train.csv'
+FILE_NAME = 'csv/vi_dataset.csv'
 FASTTEXT_MODEL_FILE = 'scam_detector_distilbert/scam_detector_model_fasttext.bin'
 FASTTEXT_TRAIN_FILE = 'fasttext_train.txt'
 FASTTEXT_TEST_FILE = 'fasttext_test.txt'
 
 # NGƯỠNG ĐÁNH GIÁ: >= 70% mới coi là lừa đảo
-SCAM_THRESHOLD = 0.70 
+SCAM_THRESHOLD = 0.60  # Hạ ngưỡng xuống 60% để bắt Scam nhạy hơn
 
 def preprocess_text(text):
     if not isinstance(text, str): return ""
@@ -36,10 +36,10 @@ def main():
         for col in df.columns:
             col_lower = str(col).strip().lower()
             # Tìm cột chứa tin nhắn
-            if col_lower in ['content', 'text', 'message', 'văn bản', 'nội dung', 'comment', 'review']:
+            if col_lower in ['content', 'text', 'message', 'văn bản', 'nội dung', 'comment', 'review', 'texts_vi']:
                 rename_map[col] = 'Message'
             # Tìm cột chứa nhãn lừa đảo (0/1)
-            if col_lower in ['label', 'nhãn', 'target', 'is_spam', 'spam', 'phân loại', 'class']:
+            if col_lower in ['label', 'labels', 'nhãn', 'target', 'is_spam', 'spam', 'phân loại', 'class']:
                 rename_map[col] = 'Label'
                 
         df = df.rename(columns=rename_map)
@@ -67,15 +67,28 @@ def main():
     df['Label'] = df['Label'].astype(str).str.strip().str.capitalize()
     df['Label'] = df['Label'].replace({
         '1': 'Scam', '1.0': 'Scam', 'Spam': 'Scam',
-        '0': 'Legit', '0.0': 'Legit'
+        '0': 'Legit', '0.0': 'Legit', 'Ham': 'Legit'
     })
 
     # Dọn dẹp nốt nếu có dòng chữ rác lọt vào
     df = df[df['Label'].isin(['Scam', 'Legit'])]
 
+    # ── CÂN BẰNG DỮ LIỆU (Class Balancing) ─────────────────────────────────
+    # Vấn đề: Cần công tâm 100% -> Tỷ lệ Scam và Legit PHẢI là 1:1
+    df_scam  = df[df['Label'] == 'Scam']
+    df_legit = df[df['Label'] == 'Legit']
+
+    # Lấy số lượng Legit làm chuẩn (tầm 4800+ dòng)
+    target_count = len(df_legit)
+
+    # Oversample Scam: nhân bản Scam lên cho chính xác BAO BẰNG số lượng Legit
+    df_scam_oversampled = df_scam.sample(n=target_count, replace=True, random_state=42)
+
+    df = pd.concat([df_scam_oversampled, df_legit]).sample(frac=1, random_state=42).reset_index(drop=True)
+
     total_samples = len(df)
     scam_count = len(df[df['Label'] == 'Scam'])
-    print(f"📊 Đã chuẩn hóa data: Tổng {total_samples} mẫu (Scam: {scam_count}, Legit: {total_samples - scam_count})")
+    print(f"📊 Sau cân bằng: Tổng {total_samples} mẫu (Scam: {scam_count}, Legit: {total_samples - scam_count}) — tỷ lệ {scam_count/(total_samples-scam_count):.2f}:1")
 
     X = df['Message']
     y = df['Label']
@@ -93,9 +106,9 @@ def main():
             text = preprocess_text(x_val)
             if text: f.write(f'__label__{str(y_val).lower()} {text}\n')
 
-    print("🚀 Đang huấn luyện mô hình FastText (Epochs=25)...")
+    print("🚀 Đang huấn luyện mô hình FastText (Epochs=30)...")
     model = fasttext.train_supervised(
-        input=FASTTEXT_TRAIN_FILE, dim=100, lr=0.1, epoch=25, 
+        input=FASTTEXT_TRAIN_FILE, dim=100, lr=0.1, epoch=30, 
         wordNgrams=2, minn=3, maxn=6, loss='softmax', verbose=2
     )
 

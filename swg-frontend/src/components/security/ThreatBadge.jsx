@@ -3,9 +3,9 @@ import './ThreatBadge.css';
 
 const CONFIG = {
   safe:             { label: 'AN TOÀN',         cls: 'badge--safe',     icon: '✅' },
-  blocked_waf:      { label: 'CHẶN: WAF',        cls: 'badge--waf',      icon: '🔥' },
-  blocked_fasttext: { label: 'CHẶN: FastText',   cls: 'badge--fasttext', icon: '🧠' },
-  blocked_distilbert:{ label: 'CHẶN: DistilBERT',cls: 'badge--distilbert',icon: '🤖' },
+  blocked_waf:      { label: 'WAF SCAM',        cls: 'badge--waf',      icon: '🔥' },
+  blocked_fasttext: { label: 'FASTTEXT SCAM',   cls: 'badge--fasttext', icon: '🧠' },
+  blocked_distilbert:{ label: 'DISTILBERT SCAM',cls: 'badge--distilbert',icon: '🤖' },
   scam:             { label: 'LỪA ĐẢO',          cls: 'badge--scam',     icon: '⚠️' },
   checking:         { label: 'ĐANG KIỂM TRA',    cls: 'badge--checking', icon: '⏳' },
 };

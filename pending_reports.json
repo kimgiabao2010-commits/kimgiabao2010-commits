@@ -333,5 +333,250 @@
     "admin_verdict": "scam",
     "verified_at": "2026-05-19T08:36:25.068169",
     "admin_note": ""
+  },
+  {
+    "id": "6bd09f2c",
+    "url": "https://nic.xyz/#",
+    "page_text_preview": "For every website, everywhere® Get your .xyz domain name now www.gen.xyz",
+    "ai_prediction": {
+      "fasttext": null,
+      "distilbert": null
+    },
+    "user_note": "Người dùng báo cáo AI nhận diện sai từ Warning Banner Extension",
+    "reported_at": "2026-05-19T11:47:17.894284",
+    "status": "verified",
+    "admin_verdict": "scam",
+    "verified_at": "2026-05-19T11:47:32.190874",
+    "admin_note": ""
+  },
+  {
+    "id": "98888dc1",
+    "url": "https://nic.xyz/#",
+    "page_text_preview": "For every website, everywhere® Get your .xyz domain name now www.gen.xyz We are the Registry Operator for .xyz domain names.  We created .xyz to connect Generations X, Y, and Z and to provide choice to internet users around the world. Our goal is to foster entrepreneurship and innovation on the internet to allow internet users around the world to spread their message. As an open and unrestricted namespace, .xyz has hit the reset button on the internet.",
+    "ai_prediction": {
+      "fasttext": null,
+      "distilbert": null
+    },
+    "user_note": "Người dùng báo cáo AI nhận diện sai từ Warning Banner Extension",
+    "reported_at": "2026-05-20T09:12:28.788176",
+    "status": "verified",
+    "admin_verdict": "scam",
+    "verified_at": "2026-05-20T09:12:43.727993",
+    "admin_note": ""
+  },
+  {
+    "id": "aaf5b569",
+    "url": "https://nic.xyz/#",
+    "page_text_preview": "For every website, everywhere® Get your .xyz domain name now www.gen.xyz We are the Registry Operator for .xyz domain names.  We created .xyz to connect Generations X, Y, and Z and to provide choice to internet users around the world. Our goal is to foster entrepreneurship and innovation on the internet to allow internet users around the world to spread their message. As an open and unrestricted namespace, .xyz has hit the reset button on the internet.",
+    "ai_prediction": {
+      "fasttext": null,
+      "distilbert": null
+    },
+    "user_note": "Người dùng báo cáo AI nhận diện sai từ Warning Banner Extension",
+    "reported_at": "2026-05-20T09:14:55.301086",
+    "status": "verified",
+    "admin_verdict": "scam",
+    "verified_at": "2026-05-20T09:16:25.531699",
+    "admin_note": ""
+  },
+  {
+    "id": "4cf9937b",
+    "url": "https://nic.xyz/#",
+    "page_text_preview": "For every website, everywhere® Get your .xyz domain name now www.gen.xyz We are the Registry Operator for .xyz domain names.  We created .xyz to connect Generations X, Y, and Z and to provide choice to internet users around the world. Our goal is to foster entrepreneurship and innovation on the internet to allow internet users around the world to spread their message. As an open and unrestricted namespace, .xyz has hit the reset button on the internet",
+    "ai_prediction": {
+      "fasttext": null,
+      "distilbert": null
+    },
+    "user_note": "Người dùng báo cáo AI nhận diện sai từ Warning Banner Extension",
+    "reported_at": "2026-05-20T09:48:37.277782",
+    "status": "verified",
+    "admin_verdict": "scam",
+    "verified_at": "2026-05-20T09:50:57.460041",
+    "admin_note": ""
+  },
+  {
+    "id": "a1c98951",
+    "url": "https://www.facebook.com/search/top/?q=tuy%E1%BB%83n%20d%E1%BB%A5ng%20",
+    "page_text_preview": "THÔNG TIN TUYỂN DỤNG Vị trí: Nhân viên Admin Back-End Số lượng: 01 (Ưu tiên NỮ) Làm việc tại: Nguyễn Đình Chiểu, Quận 1, TP.HCM Thời gian làm việc: • Thứ 2 – Thứ 6: 8h00 – 17h00 • Thứ 7: 8h00 – 12h00  MÔ TẢ CÔNG VIỆC 1. Quản lý hồ sơ phương tiện: • Theo dõi, cập nhật, lưu trữ các thông tin và giấy tờ liên quan đến xe (đăng kiểm, bảo hiểm, hợp đồng, phù hiệu, biển số, định vị, v.v.) • Đảm bảo toàn bộ giấy tờ pháp lý của phương tiện luôn còn hiệu lực • Soạn thảo và trình ký các hợp đồng hợp tác, phụ lục, biên bản liên quan đến phương tiện • Lập danh mục theo dõi xe, lịch bảo dưỡng, thông tin sửa chữa (BDSC), và các nhắc nhở định kỳ 2. Hỗ trợ vận hành nội bộ: • Tổng hợp báo cáo file Excel liên quan đến tình trạng phương tiện, hồ sơ, hợp đồng • Là đầu mối liên lạc giữa các bộ phận điều hành – hồ sơ – pháp lý • Thực hiện các công việc hành chính hỗ trợ ban điều hành khi được phân công  YÊU CẦU ỨNG VIÊN • Giới tính: Nữ • Trình độ: Trung cấp hoặc Cao đẳng trở lên • Kinh nghiệm: Không bắt buộc",
+    "ai_prediction": {
+      "fasttext": {
+        "is_scam": true,
+        "confidence": 78.25024724006653,
+        "prediction": "Scam",
+        "ok": true
+      },
+      "distilbert": null
+    },
+    "user_note": "Người dùng báo cáo AI nhận diện sai từ Warning Banner Extension",
+    "reported_at": "2026-05-20T15:42:36.211058",
+    "status": "verified",
+    "admin_verdict": "scam",
+    "verified_at": "2026-05-20T15:43:03.630233",
+    "admin_note": ""
+  },
+  {
+    "id": "4f85da9f",
+    "url": "https://www.facebook.com/search/top/?q=tuy%E1%BB%83n%20d%E1%BB%A5ng%20",
+    "page_text_preview": "THÔNG TIN TUYỂN DỤNG Vị trí: Nhân viên Admin Back-End Số lượng: 01 (Ưu tiên NỮ) Làm việc tại: Nguyễn Đình Chiểu, Quận 1, TP.HCM Thời gian làm việc: • Thứ 2 – Thứ 6: 8h00 – 17h00 • Thứ 7: 8h00 – 12h00  MÔ TẢ CÔNG VIỆC 1. Quản lý hồ sơ phương tiện: • Theo dõi, cập nhật, lưu trữ các thông tin và giấy tờ liên quan đến xe (đăng kiểm, bảo hiểm, hợp đồng, phù hiệu, biển số, định vị, v.v.) • Đảm bảo toàn bộ giấy tờ pháp lý của phương tiện luôn còn hiệu lực • Soạn thảo và trình ký các hợp đồng hợp tác, phụ lục, biên bản liên quan đến phương tiện • Lập danh mục theo dõi xe, lịch bảo dưỡng, thông tin sửa chữa (BDSC), và các nhắc nhở định kỳ 2. Hỗ trợ vận hành nội bộ: • Tổng hợp báo cáo file Excel liên quan đến tình trạng phương tiện, hồ sơ, hợp đồng • Là đầu mối liên lạc giữa các bộ phận điều hành – hồ sơ – pháp lý • Thực hiện các công việc hành chính hỗ trợ ban điều hành khi được phân công  YÊU CẦU ỨNG VIÊN • Giới tính: Nữ • Trình độ: Trung cấp hoặc Cao đẳng trở lên • Kinh nghiệm: Không bắt buộc",
+    "ai_prediction": {
+      "fasttext": {
+        "is_scam": true,
+        "confidence": 78.25024724006653,
+        "prediction": "Scam",
+        "ok": true
+      },
+      "distilbert": null
+    },
+    "user_note": "Người dùng báo cáo AI nhận diện sai từ Warning Banner Extension",
+    "reported_at": "2026-05-20T15:49:12.190858",
+    "status": "verified",
+    "admin_verdict": "scam",
+    "verified_at": "2026-05-20T15:49:27.655900",
+    "admin_note": ""
+  },
+  {
+    "id": "64b0d037",
+    "url": "https://www.facebook.com/search/top/?q=tuy%E1%BB%83n%20d%E1%BB%A5ng%20",
+    "page_text_preview": "THÔNG TIN TUYỂN DỤNG Vị trí: Nhân viên Admin Back-End Số lượng: 01 (Ưu tiên NỮ) Làm việc tại: Nguyễn Đình Chiểu, Quận 1, TP.HCM Thời gian làm việc: • Thứ 2 – Thứ 6: 8h00 – 17h00 • Thứ 7: 8h00 – 12h00  MÔ TẢ CÔNG VIỆC 1. Quản lý hồ sơ phương tiện: • Theo dõi, cập nhật, lưu trữ các thông tin và giấy tờ liên quan đến xe (đăng kiểm, bảo hiểm, hợp đồng, phù hiệu, biển số, định vị, v.v.) • Đảm bảo toàn bộ giấy tờ pháp lý của phương tiện luôn còn hiệu lực • Soạn thảo và trình ký các hợp đồng hợp tác, phụ lục, biên bản liên quan đến phương tiện • Lập danh mục theo dõi xe, lịch bảo dưỡng, thông tin sửa chữa (BDSC), và các nhắc nhở định kỳ 2. Hỗ trợ vận hành nội bộ: • Tổng hợp báo cáo file Excel liên quan đến tình trạng phương tiện, hồ sơ, hợp đồng • Là đầu mối liên lạc giữa các bộ phận điều hành – hồ sơ – pháp lý • Thực hiện các công việc hành chính hỗ trợ ban điều hành khi được phân công  YÊU CẦU ỨNG VIÊN • Giới tính: Nữ • Trình độ: Trung cấp hoặc Cao đẳng trở lên • Kinh nghiệm: Không bắt buộc",
+    "ai_prediction": {
+      "fasttext": {
+        "is_scam": true,
+        "confidence": 78.25024724006653,
+        "prediction": "Scam",
+        "ok": true
+      },
+      "distilbert": null
+    },
+    "user_note": "Người dùng báo cáo AI nhận diện sai từ Warning Banner Extension",
+    "reported_at": "2026-05-20T15:54:30.408813",
+    "status": "verified",
+    "admin_verdict": "scam",
+    "verified_at": "2026-05-20T16:06:50.267409",
+    "admin_note": ""
+  },
+  {
+    "id": "ed9e3900",
+    "url": "https://www.facebook.com/search/top/?q=tuy%E1%BB%83n%20d%E1%BB%A5ng%20",
+    "page_text_preview": "Bệnh viện Mắt Sài Gòn Trà Vinh tuyển dụng Bệnh viện Mắt Sài Gòn Trà Vinh đang tuyển dụng nhiều vị trí: • 01 Kế toán viên (Ưu tiên có kinh nghiệm làm BHYT tại bệnh viện/phòng khám, nắm quy trình khám chữa bệnh BHYT và thanh quyết toán BHYT.) • 01 Nhân viên Kế hoạch tổng hợp (Ưu tiên ứng viên có kinh nghiệm quản lý hồ sơ bệnh án và theo dõi công tác thanh quyết toán BHYT tại bệnh viện) • 01 Nhân viên Marketing (Ưu tiên có kinh nghiệm: Digital Marketing, Biên tập nội dung, Thiết kế hình ảnh, quay dựng và chỉnh sửa video) • 01 Nhân viên Kinh doanh Quyền lợi: • Mức lương thỏa thuận, cạnh tranh • Chế độ phúc lợi đầy đủ theo quy định • Môi trường làm việc thân thiện, cơ hội phát triển nghề nghiệp lâu dài Ứng tuyển ngay: tuyendung@matsaigontravinh.vn 094 441 6287 (Ms. Thảo – Phòng HCNS) Số 430, đường Nguyễn Đáng, khóm 7, phường Nguyệt Hóa, tỉnh Vĩnh Long Cơ hội làm việc trong môi trường chuyên nghiệp – phát triển bản thân – gắn bó lâu dài! Ứng tuyển ngay hôm nay để không bỏ lỡ cơ hội!",
+    "ai_prediction": {
+      "fasttext": {
+        "is_scam": true,
+        "confidence": 83.13342928886414,
+        "prediction": "Scam",
+        "ok": true
+      },
+      "distilbert": null
+    },
+    "user_note": "Người dùng báo cáo AI nhận diện sai từ Warning Banner Extension",
+    "reported_at": "2026-05-20T16:07:32.990816",
+    "status": "verified",
+    "admin_verdict": "scam",
+    "verified_at": "2026-05-20T16:08:41.449036",
+    "admin_note": ""
+  },
+  {
+    "id": "da6d9e34",
+    "url": "https://www.facebook.com/photo/?fbid=4386185931624524&set=gm.3362484853910731&idorvanity=398460836979829",
+    "page_text_preview": "Bệnh viện Mắt Sài Gòn Trà Vinh đang tuyển dụng nhiều vị trí: • 01 Kế toán viên (Ưu tiên có kinh nghiệm làm BHYT tại bệnh viện/phòng khám, nắm quy trình khám chữa bệnh BHYT và thanh quyết toán BHYT.) • 01 Nhân viên Kế hoạch tổng hợp (Ưu tiên ứng viên có kinh nghiệm quản lý hồ sơ bệnh án và theo dõi công tác thanh quyết toán BHYT tại bệnh viện) • 01 Nhân viên Marketing (Ưu tiên có kinh nghiệm: Digital Marketing, Biên tập nội dung, Thiết kế hình ảnh, quay dựng và chỉnh sửa video) • 01 Nhân viên Kinh doanh Quyền lợi: • Mức lương thỏa thuận, cạnh tranh • Chế độ phúc lợi đầy đủ theo quy định • Môi trường làm việc thân thiện, cơ hội phát triển nghề nghiệp lâu dài Ứng tuyển ngay: tuyendung@matsaigontravinh.vn 094 441 6287 (Ms. Thảo – Phòng HCNS) Số 430, đường Nguyễn Đáng, khóm 7, phường Nguyệt Hóa, tỉnh Vĩnh Long Cơ hội làm việc trong môi trường chuyên nghiệp – phát triển bản thân – gắn bó lâu dài! Ứng tuyển ngay hôm nay để không bỏ lỡ cơ hội!",
+    "ai_prediction": {
+      "fasttext": {
+        "is_scam": true,
+        "confidence": 84.34537649154663,
+        "prediction": "Scam",
+        "ok": true
+      },
+      "distilbert": null
+    },
+    "user_note": "Người dùng báo cáo AI nhận diện sai từ Warning Banner Extension",
+    "reported_at": "2026-05-20T22:49:01.621099",
+    "status": "verified",
+    "admin_verdict": "scam",
+    "verified_at": "2026-05-21T22:37:55.866519",
+    "admin_note": ""
+  },
+  {
+    "id": "240dc2d9",
+    "url": "https://www.facebook.com/search/top?q=tin%20tuy%E1%BB%83n%20d%E1%BB%A5ng",
+    "page_text_preview": "VTX tìm kiếm các kỹ sư kiểm soát chất lượng cho các sản phẩm mới, dự án mới. Bạn ứng tuyển ngay nhé.",
+    "ai_prediction": {
+      "fasttext": {
+        "is_scam": false,
+        "confidence": 74.45144057273865,
+        "prediction": "Legit",
+        "ok": true
+      },
+      "distilbert": {
+        "is_scam": true,
+        "confidence": 50.62,
+        "prediction": "Scam",
+        "ok": true
+      }
+    },
+    "user_note": "Người dùng báo cáo AI nhận diện sai từ Warning Banner Extension",
+    "reported_at": "2026-05-21T22:37:18.357824",
+    "status": "verified",
+    "admin_verdict": "scam",
+    "verified_at": "2026-05-21T22:37:50.448027",
+    "admin_note": ""
+  },
+  {
+    "id": "393e6b51",
+    "url": "https://www.facebook.com/search/top?q=tin%20tuy%E1%BB%83n%20d%E1%BB%A5ng",
+    "page_text_preview": "TRAPHACO tuyển dụng Nhân sự dự án phát triển kênh ETC (Địa bàn Hà Nội và các tỉnh).",
+    "ai_prediction": {
+      "fasttext": {
+        "is_scam": true,
+        "confidence": 63.1912887096405,
+        "prediction": "Scam",
+        "ok": true
+      },
+      "distilbert": null
+    },
+    "user_note": "Người dùng báo cáo AI nhận diện sai từ Warning Banner Extension",
+    "reported_at": "2026-05-21T22:43:44.308162",
+    "status": "verified",
+    "admin_verdict": "scam",
+    "verified_at": "2026-05-21T22:46:08.234148",
+    "admin_note": ""
+  },
+  {
+    "id": "7d89c1d8",
+    "url": "https://www.facebook.com/search/top?q=tin%20tuy%E1%BB%83n%20d%E1%BB%A5ng",
+    "page_text_preview": "SUBE TUYỂN LIVESTREAM PART-TIME – THU NHẬP 8 - 9TR  Gia nhập team livestream SUBE ngay!  CÔNG VIỆC - Livestream giới thiệu sản phẩm gia dụng - Tương tác, tư vấn và trả lời khách hàng trực tiếp  YÊU CẦU - Ngoại hình ưa nhìn, tự tin trước camera - Làm việc được theo ca linh hoạt (ưu tiên ca tối)  Địa chỉ: Thái Hà, Đống Đa, Hà Nội =========================  SUBE – Công ty nhập khẩu & phân phối chính hãng thương hiệu gia dụng Bear tại Việt Nam.  Email: tuyendung@sube.vn  Hotline: 038.859.8686",
+    "ai_prediction": {
+      "fasttext": {
+        "is_scam": true,
+        "confidence": 75.99541544914246,
+        "prediction": "Scam",
+        "ok": true
+      },
+      "distilbert": null
+    },
+    "user_note": "Người dùng báo cáo AI nhận diện sai từ Warning Banner Extension",
+    "reported_at": "2026-05-21T22:48:13.535492",
+    "status": "verified",
+    "admin_verdict": "scam",
+    "verified_at": "2026-05-21T22:50:19.977047",
+    "admin_note": ""
+  },
+  {
+    "id": "f984f96e",
+    "url": "https://www.facebook.com/search/top?q=tin%20tuy%E1%BB%83n%20d%E1%BB%A5ng",
+    "page_text_preview": "TRAPHACO tuyển dụng Nhân sự dự án phát triển kênh ETC (Địa bàn Hà Nội và các tỉnh).",
+    "ai_prediction": {
+      "fasttext": {
+        "is_scam": true,
+        "confidence": 74.64461922645569,
+        "prediction": "Scam",
+        "ok": true
+      },
+      "distilbert": null
+    },
+    "user_note": "Người dùng báo cáo AI nhận diện sai từ Warning Banner Extension",
+    "reported_at": "2026-05-21T23:04:55.294779",
+    "status": "verified",
+    "admin_verdict": "scam",
+    "verified_at": "2026-05-22T08:05:14.031277",
+    "admin_note": ""
   }
 ]

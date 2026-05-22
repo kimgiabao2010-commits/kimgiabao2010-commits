@@ -41,7 +41,7 @@ MAX_LENGTH = 512
 
 # XAI settings
 XAI_CONFIDENCE_THRESHOLD = 0.75   # Only run LIME when conf > 75%
-XAI_NUM_KEYWORDS         = 5      # Top N keywords to extract
+XAI_NUM_KEYWORDS         = 3      # Top N keywords to extract
 XAI_LIME_SAMPLES         = 200    # LIME samples (lower = faster, less precise)
 
 LABEL_MAP = {0: "Legit", 1: "Scam"}
