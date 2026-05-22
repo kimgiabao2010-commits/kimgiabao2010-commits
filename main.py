@@ -45,7 +45,7 @@ from urllib.parse import urlparse
 
 import httpx
 from cachetools import TTLCache
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -56,6 +56,7 @@ from slowapi.util import get_remote_address
 from waf.waf_engine import WafEngine
 from waf.waf_logger import log_alert
 from waf.scam_pattern_engine import analyze_scam_patterns
+from retrain_pipeline import append_to_train_file, run_pipeline as retrain_fasttext
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -697,6 +698,119 @@ async def api_get_scan_log(
     """Poll scan log từ Dashboard để lấy kết quả mới nhất."""
     with _scan_log_lock:
         return {"logs": _scan_log_history[:limit], "total": len(_scan_log_history)}
+
+
+# ---------------------------------------------------------------------------
+# Retrain FastText từ pending_reports.json (Human-in-the-Loop)
+# ---------------------------------------------------------------------------
+
+PENDING_REPORTS_PATH = os.path.join(os.path.dirname(__file__), "pending_reports.json")
+
+
+@app.post("/api/retrain/fasttext")
+async def api_retrain_fasttext(
+    background_tasks: BackgroundTasks,
+    _: None = Depends(verify_api_key),
+):
+    """
+    Đọc pending_reports.json → format sang FastText → append vào train file
+    → kích hoạt retrain 30 epochs chạy ngầm (BackgroundTasks).
+    """
+    # ── Bước 1: Đọc pending_reports.json ─────────────────────────────────
+    try:
+        with open(PENDING_REPORTS_PATH, "r", encoding="utf-8") as f:
+            reports: list[dict] = json.load(f)
+    except FileNotFoundError:
+        logger.warning("/api/retrain/fasttext: pending_reports.json không tồn tại.")
+        return {
+            "status": "success",
+            "message": "Không có dữ liệu mới — pending_reports.json chưa tồn tại.",
+            "new_samples": 0,
+        }
+    except json.JSONDecodeError as exc:
+        logger.error("/api/retrain/fasttext: JSON parse error — %s", exc)
+        raise HTTPException(status_code=422, detail=f"pending_reports.json bị lỗi định dạng: {exc}")
+
+    if not reports:
+        logger.info("/api/retrain/fasttext: pending_reports.json rỗng, không có dữ liệu mới.")
+        return {
+            "status": "success",
+            "message": "Không có dữ liệu mới — pending_reports.json đang rỗng.",
+            "new_samples": 0,
+        }
+
+    # ── Bước 2 & 3: Lọc và format sang chuẩn FastText ───────────────────
+    import re as _re
+
+    def _preprocess(text: str) -> str:
+        """Tiền xử lý nhất quán với FastText server."""
+        if not isinstance(text, str):
+            return ""
+        text = text.lower()
+        text = _re.sub(r"http\S+|www\S+", "", text)
+        text = _re.sub(r"\S+@\S+", "", text)
+        text = _re.sub(r"[^\w\s]", " ", text)
+        text = _re.sub(r"\d+", "", text)
+        text = " ".join(text.split())
+        return text
+
+    formatted_lines: list[str] = []
+    for report in reports:
+        # Ưu tiên admin_verdict nếu đã được duyệt; fallback sang status của report
+        verdict: str = str(report.get("admin_verdict") or report.get("status") or "").strip().lower()
+        # Chỉ nhận các verdict rõ ràng là scam (blocked) hoặc safe
+        if verdict in ("scam", "blocked", "confirmed_scam", "malicious"):
+            ft_label = "scam"
+        elif verdict in ("safe", "legit", "false_positive", "confirmed_safe"):
+            ft_label = "legit"
+        else:
+            # Bỏ qua các report chưa được admin duyệt (status="pending")
+            continue
+
+        raw_text: str = str(
+            report.get("page_text_preview")
+            or report.get("text")
+            or report.get("url")
+            or ""
+        ).strip()
+
+        processed = _preprocess(raw_text)
+        if not processed:
+            continue
+
+        formatted_lines.append(f"__label__{ft_label} {processed}")
+
+    if not formatted_lines:
+        logger.info(
+            "/api/retrain/fasttext: %d reports đọc được nhưng 0 mẫu hợp lệ (chưa có admin verdict).",
+            len(reports),
+        )
+        return {
+            "status": "success",
+            "message": "Không có mẫu hợp lệ — tất cả reports chưa có admin_verdict được duyệt.",
+            "total_reports": len(reports),
+            "new_samples": 0,
+        }
+
+    # ── Bước 4: Append dữ liệu vào fasttext_train.txt ────────────────────
+    try:
+        written = append_to_train_file(formatted_lines)
+        logger.info("/api/retrain/fasttext: Đã append %d dòng vào fasttext_train.txt.", written)
+    except Exception as exc:
+        logger.error("/api/retrain/fasttext: Lỗi khi append train file — %s", exc)
+        raise HTTPException(status_code=500, detail=f"Lỗi ghi train file: {exc}")
+
+    # ── Bước 5: Kích hoạt retrain chạy ngầm (BackgroundTasks) ────────────
+    background_tasks.add_task(retrain_fasttext)
+    logger.info("/api/retrain/fasttext: Đã kick BackgroundTask retrain_fasttext()!")
+
+    return {
+        "status": "success",
+        "message": "Đã tích hợp dữ liệu mới vào file gốc và đang kích hoạt tiến trình huấn luyện lại FastText (30 Epochs) chạy ngầm!",
+        "total_reports_read": len(reports),
+        "new_samples_appended": written,
+    }
+
 
 @app.get("/api/cache/stats")
 async def cache_stats(_: None = Depends(verify_api_key)):

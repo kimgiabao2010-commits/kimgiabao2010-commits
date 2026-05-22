@@ -45,7 +45,7 @@ FASTTEXT_SERVER_RELOAD_URL = "http://localhost:5001/reload"
 
 # Tham số huấn luyện FastText
 TRAIN_PARAMS = {
-    "epoch": 25,
+    "epoch": 30,
     "lr": 0.5,
     "wordNgrams": 3,
     "dim": 100,

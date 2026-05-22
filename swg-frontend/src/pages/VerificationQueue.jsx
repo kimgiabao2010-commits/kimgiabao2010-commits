@@ -263,6 +263,7 @@ export default function VerificationQueue() {
   const [toasts,    setToasts]    = useState([]);
   const [csvRows,   setCsvRows]   = useState(0);
   const [serverUp,  setServerUp]  = useState(null);
+  const [isRetraining, setIsRetraining] = useState(false);
   const pollTimer = useRef(null);
 
   const addToast = useCallback((message, type = 'success') => {
@@ -346,6 +347,33 @@ export default function VerificationQueue() {
     }
   }, [addToast]);
 
+  const handleRetrainFastText = useCallback(async () => {
+    if (!window.confirm(
+      'Bạn có chắc chắn muốn nạp các dữ liệu đã duyệt và tiến hành tái huấn luyện mô hình FastText với 30 Epochs ngầm không?'
+    )) return;
+
+    setIsRetraining(true);
+    try {
+      const res = await fetch('http://localhost:8000/api/retrain/fasttext', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': 'swg-vnu-is-2026',
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+      alert(data.message
+        + (data.new_samples_appended != null
+          ? `\n\n✅ Số mẫu mới đã nạp: ${data.new_samples_appended} / ${data.total_reports_read} reports.`
+          : ''));
+    } catch (e) {
+      alert(`❌ Lỗi kết nối: ${e.message}`);
+    } finally {
+      setIsRetraining(false);
+    }
+  }, []);
+
   return (
     <div className="p-10 w-full font-sans text-gray-900 max-w-[1600px] mx-auto relative">
 
@@ -374,10 +402,11 @@ export default function VerificationQueue() {
             {loading ? 'SYNCING...' : 'SYNC DATA'}
           </button>
           <button
-            onClick={() => window.open(`${ADMIN_API}/api/export`, '_blank')}
-            className="px-4 py-2 bg-gray-900 hover:bg-black text-white text-xs font-bold uppercase tracking-widest transition-colors"
+            onClick={handleRetrainFastText}
+            disabled={isRetraining}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold uppercase tracking-widest transition-colors"
           >
-            EXPORT DATASET ({csvRows})
+            {isRetraining ? '⚙️ Đang kích hoạt...' : '🚀 Huấn luyện lại FastText'}
           </button>
         </div>
       </div>
