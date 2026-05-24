@@ -98,25 +98,49 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     }
 });
 
-// FIX 2: Gửi log scan về backend (fire-and-forget, không chặn UI)
+// FIX 2: Gửi log scan về backend với retry 1 lần sau 2 giây nếu thất bại
 function _postScanLog(text, aiData, isMalicious) {
-    fetch("http://localhost:8000/api/scan-log", {
+    const payload = JSON.stringify({
+        text: text,
+        is_malicious: isMalicious,
+        layer: aiData?.layer || null,
+        label: isMalicious ? "Scam" : "Legit",
+        score: aiData?.score ?? null,
+        fasttext: aiData?.fasttext || null,
+        distilbert: aiData?.distilbert || null,
+        waf_blocked: aiData?.waf_blocked || false,
+        attack_type: aiData?.attack_type || null,
+        pattern_engine: aiData?.pattern_engine || null,
+    });
+
+    const doPost = () => fetch("http://localhost:8000/api/scan-log", {
         method: "POST",
         headers: { ...SWG_GATEWAY_HEADERS },
-        body: JSON.stringify({
-            text: text,
-            is_malicious: isMalicious,
-            layer: aiData?.layer || null,
-            label: isMalicious ? "Scam" : "Legit",
-            score: aiData?.score ?? null,
-            fasttext: aiData?.fasttext || null,
-            distilbert: aiData?.distilbert || null,
-            waf_blocked: aiData?.waf_blocked || false,
-            attack_type: aiData?.attack_type || null,
-            pattern_engine: aiData?.pattern_engine || null,
+        body: payload
+    });
+
+    doPost()
+        .then(res => {
+            if (res.ok) {
+                console.log("✅ [SWG] Scan log đã gửi về backend thành công.");
+            } else {
+                throw new Error(`HTTP ${res.status}`);
+            }
         })
-    }).catch(() => {}); // Im lặng nếu server down
+        .catch(err => {
+            console.warn("⚠️ [SWG] Lần 1 thất bại (" + err.message + "), thử lại sau 2s...");
+            // Retry 1 lần sau 2 giây
+            setTimeout(() => {
+                doPost()
+                    .then(res => {
+                        if (res.ok) console.log("✅ [SWG] Retry thành công — log đã lưu vào backend!");
+                        else console.error("❌ [SWG] Retry thất bại HTTP " + res.status);
+                    })
+                    .catch(e => console.error("❌ [SWG] Server không phản hồi sau retry:", e.message));
+            }, 2000);
+        });
 }
+
 
 // WAF Layer 1 — Kiểm tra URL khi điều hướng (Port 8000)
 chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
