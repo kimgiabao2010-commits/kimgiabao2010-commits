@@ -801,6 +801,17 @@ async def api_retrain_fasttext(
         raise HTTPException(status_code=500, detail=f"Lỗi ghi train file: {exc}")
 
     # ── Bước 5: Kích hoạt retrain chạy ngầm (BackgroundTasks) ────────────
+    import sys as _sys
+    print("", flush=True)
+    print("=" * 65, flush=True)
+    print("🔔 [API /api/retrain/fasttext] BACKGROUND TASK ĐÃ ĐƯỢC ĐƯA VÀO HÀNG ĐỢI!", flush=True)
+    print(f"   Số mẫu sẽ train thêm : {written}", flush=True)
+    print(f"   Hàm được gọi         : retrain_fasttext() → run_pipeline()", flush=True)
+    print(f"   Số epoch             : 30", flush=True)
+    print("   ⏳ Vui lòng chờ log BACKGROUND TASK xuất hiện...", flush=True)
+    print("=" * 65, flush=True)
+    print("", flush=True)
+    _sys.stdout.flush()
     background_tasks.add_task(retrain_fasttext)
     logger.info("/api/retrain/fasttext: Đã kick BackgroundTask retrain_fasttext()!")
 

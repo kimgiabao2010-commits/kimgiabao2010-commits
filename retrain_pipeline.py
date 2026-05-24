@@ -68,7 +68,10 @@ logging.basicConfig(
     handlers=[
         logging.StreamHandler(sys.stdout),
     ],
+    force=True,  # Đảm bảo cấu hình được áp dụng ngay cả khi logger đã tồn tại
 )
+# Buộc stdout flush ngay lập tức — cần thiết trên Windows khi chạy background task
+sys.stdout.reconfigure(line_buffering=True)  # type: ignore[attr-defined]
 logger = logging.getLogger("retrain_pipeline")
 
 # ---------------------------------------------------------------------------
@@ -185,12 +188,26 @@ def train_and_save_model() -> bool:
     try:
         import fasttext  # Import ở đây để tránh lỗi nếu thư viện chưa cài
     except ImportError:
+        print("❌ [BACKGROUND TASK] Thư viện 'fasttext' chưa được cài!", flush=True)
         logger.error("Thư viện 'fasttext' chưa được cài. Chạy: pip install fasttext")
         return False
 
     if not FASTTEXT_TRAIN_TXT.exists():
+        print(f"❌ [BACKGROUND TASK] Không tìm thấy file train: {FASTTEXT_TRAIN_TXT}", flush=True)
         logger.error("Không tìm thấy file train: %s", FASTTEXT_TRAIN_TXT)
         return False
+
+    # ── PRINT NỔI BẬT: Bắt đầu train ────────────────────────────────────
+    print("", flush=True)
+    print("=" * 65, flush=True)
+    print("🚀 [BACKGROUND TASK] ĐANG BẮT ĐẦU HUẤN LUYỆN LẠI FASTTEXT", flush=True)
+    print(f"   Epoch    : {TRAIN_PARAMS['epoch']}", flush=True)
+    print(f"   LR       : {TRAIN_PARAMS['lr']}", flush=True)
+    print(f"   wordNgrams: {TRAIN_PARAMS['wordNgrams']}", flush=True)
+    print(f"   dim      : {TRAIN_PARAMS['dim']}", flush=True)
+    print(f"   Train file: {FASTTEXT_TRAIN_TXT}", flush=True)
+    print("=" * 65, flush=True)
+    print("", flush=True)
 
     logger.info("Bắt đầu train FastText model với tham số: %s", TRAIN_PARAMS)
     t_start = time.monotonic()
@@ -201,8 +218,10 @@ def train_and_save_model() -> bool:
             **TRAIN_PARAMS,
         )
         elapsed = round(time.monotonic() - t_start, 2)
+        print(f"⏱️  [BACKGROUND TASK] Train FastText hoàn tất trong {elapsed:.2f}s.", flush=True)
         logger.info("✓ Train hoàn tất trong %.2fs.", elapsed)
     except Exception as exc:
+        print(f"❌ [BACKGROUND TASK] LỖI khi train model: {exc}", flush=True)
         logger.error("LỖI khi train model: %s", exc, exc_info=True)
         return False
 
@@ -210,9 +229,17 @@ def train_and_save_model() -> bool:
     try:
         MODEL_BIN_PATH.parent.mkdir(parents=True, exist_ok=True)
         model.save_model(str(MODEL_BIN_PATH))
-        logger.info("✓ Model đã lưu vào: %s (%.1f MB)", MODEL_BIN_PATH,
-                    MODEL_BIN_PATH.stat().st_size / 1_048_576)
+        size_mb = MODEL_BIN_PATH.stat().st_size / 1_048_576
+        print("", flush=True)
+        print("=" * 65, flush=True)
+        print("✅ [BACKGROUND TASK] HUẤN LUYỆN XONG VÀ ĐÃ LƯU MODEL MỚI!", flush=True)
+        print(f"   Đường dẫn: {MODEL_BIN_PATH}", flush=True)
+        print(f"   Kích thước: {size_mb:.1f} MB", flush=True)
+        print("=" * 65, flush=True)
+        print("", flush=True)
+        logger.info("✓ Model đã lưu vào: %s (%.1f MB)", MODEL_BIN_PATH, size_mb)
     except Exception as exc:
+        print(f"❌ [BACKGROUND TASK] LỖI khi lưu model: {exc}", flush=True)
         logger.error("LỖI khi lưu model: %s", exc, exc_info=True)
         return False
 
@@ -270,7 +297,13 @@ def run_pipeline() -> None:
     Chạy toàn bộ HITL retrain pipeline theo thứ tự 6 bước.
     In tóm tắt kết quả cuối cùng ra console.
     """
-    banner = "=" * 60
+    banner = "=" * 65
+    print("", flush=True)
+    print(banner, flush=True)
+    print("  🔄 SWG HITL RETRAIN PIPELINE — BACKGROUND TASK", flush=True)
+    print(f"  Bắt đầu lúc: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
+    print(banner, flush=True)
+    print("", flush=True)
     logger.info(banner)
     logger.info("  SWG HITL RETRAIN PIPELINE")
     logger.info("  Bắt đầu lúc: %s", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
@@ -303,6 +336,15 @@ def run_pipeline() -> None:
     reloaded = notify_server_reload()
 
     # ── Tóm tắt ─────────────────────────────────────────────────────────────
+    print("", flush=True)
+    print(banner, flush=True)
+    print("  📊 KẾT QUẢ PIPELINE", flush=True)
+    print(f"  Dòng dữ liệu mới đã ghi : {written}", flush=True)
+    print(f"  Train model              : {'✅ Thành công' if success else '❌ Thất bại'}", flush=True)
+    print(f"  Server reload            : {'✅ Thành công' if reloaded else '⚠️  Cần restart server thủ công'}", flush=True)
+    print(f"  Kết thúc lúc             : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
+    print(banner, flush=True)
+    print("", flush=True)
     logger.info(banner)
     logger.info("  KẾT QUẢ PIPELINE")
     logger.info("  Dòng dữ liệu mới đã ghi: %d", written)
