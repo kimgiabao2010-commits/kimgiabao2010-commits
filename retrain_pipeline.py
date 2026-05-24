@@ -38,7 +38,10 @@ BASE_DIR = Path(__file__).parent
 
 RETRAIN_CSV = BASE_DIR / "re_train_dataset.csv"
 FASTTEXT_TRAIN_TXT = BASE_DIR / "fasttext_train.txt"
-MODEL_BIN_PATH = BASE_DIR / "scam_detector_distilbert" / "scam_detector_model_fasttext.bin"
+# LƯU Ý: File fasttext .bin nằm trong thư mục 'scam_detector_distilbert' vì đây là
+# thư mục model chung của toàn dự án, KHÔNG phải model DistilBERT.
+# api_server_fasttext.py load model từ chính path này — KHÔNG được thay đổi.
+FASTTEXT_MODEL_BIN = BASE_DIR / "scam_detector_distilbert" / "scam_detector_model_fasttext.bin"
 
 # FastText server endpoint để reload model sau khi train
 FASTTEXT_SERVER_RELOAD_URL = "http://localhost:5001/reload"
@@ -193,23 +196,25 @@ def train_and_save_model() -> bool:
         return False
 
     if not FASTTEXT_TRAIN_TXT.exists():
-        print(f"❌ [BACKGROUND TASK] Không tìm thấy file train: {FASTTEXT_TRAIN_TXT}", flush=True)
-        logger.error("Không tìm thấy file train: %s", FASTTEXT_TRAIN_TXT)
+        print(f"❌ [FASTTEXT] Không tìm thấy file train: {FASTTEXT_TRAIN_TXT}", flush=True)
+        logger.error("[FASTTEXT] Không tìm thấy file train: %s", FASTTEXT_TRAIN_TXT)
         return False
 
     # ── PRINT NỔI BẬT: Bắt đầu train ────────────────────────────────────
     print("", flush=True)
     print("=" * 65, flush=True)
-    print("🚀 [BACKGROUND TASK] ĐANG BẮT ĐẦU HUẤN LUYỆN LẠI FASTTEXT", flush=True)
-    print(f"   Epoch    : {TRAIN_PARAMS['epoch']}", flush=True)
-    print(f"   LR       : {TRAIN_PARAMS['lr']}", flush=True)
+    print("🚀 [FASTTEXT] ĐANG BẮT ĐẦU HUẤN LUYỆN LẠI FASTTEXT MODEL", flush=True)
+    print(f"   Epoch     : {TRAIN_PARAMS['epoch']}", flush=True)
+    print(f"   LR        : {TRAIN_PARAMS['lr']}", flush=True)
     print(f"   wordNgrams: {TRAIN_PARAMS['wordNgrams']}", flush=True)
-    print(f"   dim      : {TRAIN_PARAMS['dim']}", flush=True)
+    print(f"   dim       : {TRAIN_PARAMS['dim']}", flush=True)
+    print(f"   loss      : {TRAIN_PARAMS['loss']}", flush=True)
     print(f"   Train file: {FASTTEXT_TRAIN_TXT}", flush=True)
+    print(f"   Model out : {FASTTEXT_MODEL_BIN}", flush=True)
     print("=" * 65, flush=True)
     print("", flush=True)
 
-    logger.info("Bắt đầu train FastText model với tham số: %s", TRAIN_PARAMS)
+    logger.info("[FASTTEXT] Bắt đầu train model với tham số: %s", TRAIN_PARAMS)
     t_start = time.monotonic()
 
     try:
@@ -218,29 +223,30 @@ def train_and_save_model() -> bool:
             **TRAIN_PARAMS,
         )
         elapsed = round(time.monotonic() - t_start, 2)
-        print(f"⏱️  [BACKGROUND TASK] Train FastText hoàn tất trong {elapsed:.2f}s.", flush=True)
-        logger.info("✓ Train hoàn tất trong %.2fs.", elapsed)
+        print(f"⏱️  [FASTTEXT] Huấn luyện {TRAIN_PARAMS['epoch']} epochs hoàn tất trong {elapsed:.2f}s.", flush=True)
+        logger.info("[FASTTEXT] ✓ Train hoàn tất trong %.2fs.", elapsed)
     except Exception as exc:
-        print(f"❌ [BACKGROUND TASK] LỖI khi train model: {exc}", flush=True)
-        logger.error("LỖI khi train model: %s", exc, exc_info=True)
+        print(f"❌ [FASTTEXT] LỖI khi train model: {exc}", flush=True)
+        logger.error("[FASTTEXT] LỖI khi train model: %s", exc, exc_info=True)
         return False
 
-    # Lưu đè model cũ
+    # Lưu đè FastText model .bin (KHÔNG phải DistilBERT)
     try:
-        MODEL_BIN_PATH.parent.mkdir(parents=True, exist_ok=True)
-        model.save_model(str(MODEL_BIN_PATH))
-        size_mb = MODEL_BIN_PATH.stat().st_size / 1_048_576
+        FASTTEXT_MODEL_BIN.parent.mkdir(parents=True, exist_ok=True)
+        model.save_model(str(FASTTEXT_MODEL_BIN))
+        size_mb = FASTTEXT_MODEL_BIN.stat().st_size / 1_048_576
         print("", flush=True)
         print("=" * 65, flush=True)
-        print("✅ [BACKGROUND TASK] HUẤN LUYỆN XONG VÀ ĐÃ LƯU MODEL MỚI!", flush=True)
-        print(f"   Đường dẫn: {MODEL_BIN_PATH}", flush=True)
-        print(f"   Kích thước: {size_mb:.1f} MB", flush=True)
+        print("✅ [FASTTEXT] Đã huấn luyện 30 epochs và lưu model thành công!", flush=True)
+        print(f"   FastText model lưu tại : {FASTTEXT_MODEL_BIN}", flush=True)
+        print(f"   Kích thước file .bin   : {size_mb:.1f} MB", flush=True)
+        print("   ⚠️  Đây là FastText model — KHÔNG phải DistilBERT model.", flush=True)
         print("=" * 65, flush=True)
         print("", flush=True)
-        logger.info("✓ Model đã lưu vào: %s (%.1f MB)", MODEL_BIN_PATH, size_mb)
+        logger.info("[FASTTEXT] ✓ FastText model đã lưu vào: %s (%.1f MB)", FASTTEXT_MODEL_BIN, size_mb)
     except Exception as exc:
-        print(f"❌ [BACKGROUND TASK] LỖI khi lưu model: {exc}", flush=True)
-        logger.error("LỖI khi lưu model: %s", exc, exc_info=True)
+        print(f"❌ [FASTTEXT] LỖI khi lưu FastText model: {exc}", flush=True)
+        logger.error("[FASTTEXT] LỖI khi lưu model: %s", exc, exc_info=True)
         return False
 
     return True
