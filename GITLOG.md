@@ -77,3 +77,7 @@ git status
 1.  **Stage các thay đổi mới**: `git add .`
 2.  **Commit với thông điệp rõ ràng**: `git commit -m "docs: update development changelog and progress report"`
 3.  **Đẩy lên GitHub**: `git push origin main`
+
+### 🔴 Vấn đề 6: Cập nhật dữ liệu từ thực tế (Human-in-the-Loop Auto Retraining)
+*   **Chi tiết vấn đề**: Mô hình FastText sau khi deploy sẽ dần lỗi thời trước các mánh khóe lừa đảo mới.
+*   **Giải pháp v5.0**: Xây dựng **Retraining Control Center** trên Dashboard. Admin duyệt các cảnh báo người dùng báo cáo -> 1 Click Retrain -> Hệ thống tự gom mẫu duyệt vào \csv/vi_dataset.csv\, huấn luyện 30 epoch, trích xuất model \.bin\ mới và Hot-Reload FastText Server :5001 ngay lập tức.
