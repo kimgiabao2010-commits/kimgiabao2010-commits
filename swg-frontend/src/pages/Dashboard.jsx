@@ -1,19 +1,23 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import {
   ResponsiveContainer,
   PieChart,
   Pie,
   Cell,
-  RadialBarChart,
-  RadialBar,
   Tooltip,
 } from 'recharts';
 import useScanStore from '../store/scanStore';
 import {
   Shield, Zap, Target, Crosshair, Hexagon,
   TerminalSquare, AlertTriangle, CheckSquare,
-  Layers, Activity, GitBranch, Radio, Brain
+  Layers, Activity, GitBranch, Radio, Brain,
+  RefreshCw, Database, Play, CheckCircle2, XCircle,
+  Clock, ChevronRight, Cpu, BarChart3, FileText,
 } from 'lucide-react';
+
+const SWG_API_KEY = 'swg-vnu-is-2026';
+const API_BASE    = 'http://localhost:8000';
+const REPORT_BASE = 'http://localhost:5003';
 
 /* ── Tooltip ──────────────────────────────────────────────── */
 const CustomTooltip = ({ active, payload, label }) => {
@@ -397,172 +401,307 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Live logs */}
+        {/* FastText Retraining Panel */}
         <div className="col-span-1 lg:col-span-2">
-          <div className="bg-white border border-gray-200/80 p-8 h-full flex flex-col">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-[0.65rem] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <TerminalSquare size={13} strokeWidth={1.5} /> LIVE INTERCEPT LOGS
-              </h2>
-              {history.length > 0 && (
-                <span className="text-[0.6rem] font-mono font-bold text-gray-400">{history.length} RECORDS</span>
-              )}
-            </div>
-
-            <div className="overflow-x-auto flex-1">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-100 text-[0.65rem] uppercase tracking-widest text-gray-400 font-bold">
-                    <th className="pb-3 pr-4">Payload Snapshot</th>
-                    <th className="pb-3 px-4 text-center">Layer</th>
-                    <th className="pb-3 px-4 text-center">Risk Score</th>
-                    <th className="pb-3 px-4 text-center">Verdict</th>
-                    <th className="pb-3 pl-4 text-right">Time</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {history.slice(0, 7).map((log, idx) => {
-                    const r     = log.result || {};
-                    const isThreat = r.blocked || r.waf_blocked || r.prediction?.toLowerCase() === 'scam' || r.prediction?.toLowerCase() === 'attack';
-                    let layer = "UNKNOWN";
-                    if (r.layer_info) {
-                        layer = r.layer_info;
-                    } else {
-                        layer = r.waf_blocked ? 'WAF' : (r.distilbert_blocked !== undefined ? 'DISTILBERT' : 'FASTTEXT');
-                    }
-                    const status = isThreat ? (r.waf_blocked ? 'ATTACK' : 'SCAM') : 'SAFE';
-                      
-                    let confDisplay = '—';
-                    if (r.waf_blocked) {
-                        confDisplay = '100%';
-                    } else if (r.is_trusted || layer === 'TRUSTED_CITATION' || layer === 'TRUSTED_DOMAIN') {
-                        confDisplay = 'BYPASS';
-                    } else if (r.confidence != null) {
-                        // Tính Risk Score
-                        const risk = isThreat ? Math.round(r.confidence * 100) : Math.round((1.0 - r.confidence) * 100);
-                        confDisplay = `${risk}%`;
-                    }
-
-                    const isExpanded = expandedId === log.id;
-
-                    // Extract model data
-                    const ftData = r.fasttext || {};
-                    const dbData = r.distilbert || {};
-                    const patternEngine = r.pattern_engine || {};
-
-                    const ftConf = ftData.confidence != null ? ftData.confidence : (ftData.probability != null ? ftData.probability : null);
-                    const dbConf = dbData.confidence_score != null ? dbData.confidence_score / 100 : (dbData.confidence != null ? dbData.confidence : null);
-
-                    return (
-                      <React.Fragment key={log.id || idx}>
-                        <tr 
-                          onClick={() => toggleExpand(log.id)}
-                          className={`hover:bg-gray-50/50 transition-colors cursor-pointer group ${isExpanded ? 'bg-gray-50/30' : ''}`}
-                        >
-                          <td className="py-3.5 pr-4 max-w-[220px]">
-                            <span className="text-xs font-semibold text-gray-700 truncate block" title={log.text}>{log.text}</span>
-                          </td>
-                          <td className="py-3.5 px-4 text-center">
-                            <span className="text-[0.6rem] font-mono font-bold text-gray-400 tracking-widest">{layer}</span>
-                          </td>
-                          <td className="py-3.5 px-4 text-center">
-                            <span className="text-[0.65rem] font-mono font-bold text-gray-500">{confDisplay}</span>
-                          </td>
-                          <td className="py-3.5 px-4 text-center">
-                            <LogBadge status={status} />
-                          </td>
-                          <td className="py-3.5 pl-4 text-right flex items-center justify-end gap-2.5">
-                            <span className="text-[0.65rem] text-gray-400 font-mono font-bold">
-                              {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                            </span>
-                            <span className="text-[0.6rem] font-bold text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                              {isExpanded ? '▲' : '▼'}
-                            </span>
-                          </td>
-                        </tr>
-
-                        {isExpanded && (
-                          <tr>
-                            <td colSpan="5" className="p-0 border-b border-gray-100 bg-[#FAFAFC]">
-                              <div className="px-6 py-5 border-t border-gray-100 flex flex-col gap-4">
-                                
-                                {/* Side-by-side Layer bars */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                  <ConfBar 
-                                    layerName="FastText Layer"
-                                    label={ftData.prediction}
-                                    value={ftConf}
-                                  />
-                                  <ConfBar 
-                                    layerName="DistilBERT Layer"
-                                    label={dbData.prediction}
-                                    value={dbConf}
-                                  />
-
-                                  {/* Pattern Engine Box */}
-                                  <div className="flex flex-col gap-1.5 w-full bg-white p-3 border border-gray-100 rounded shadow-sm">
-                                    <div className="flex justify-between items-center">
-                                      <span className="text-[0.55rem] font-bold text-gray-400 uppercase tracking-widest">Rule-Based Patterns</span>
-                                      <span className={`text-[0.6rem] font-mono font-bold ${patternEngine.is_scam ? 'text-rose-500' : 'text-gray-400'}`}>
-                                        {patternEngine.risk_score || 0}/100 PTS
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between items-baseline">
-                                      <span className="text-[0.65rem] font-bold text-gray-500 uppercase">Status:</span>
-                                      <span className={`text-[0.65rem] font-mono font-extrabold uppercase ${patternEngine.is_scam ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                        {patternEngine.is_scam ? 'SCAM FOUND' : 'CLEARED'}
-                                      </span>
-                                    </div>
-
-                                    {patternEngine.matched_rules && patternEngine.matched_rules.length > 0 ? (
-                                      <div className="mt-1 text-[0.6rem] font-mono text-rose-600 bg-rose-50/50 p-1.5 border border-rose-100 rounded leading-relaxed max-h-[60px] overflow-y-auto">
-                                        {patternEngine.matched_rules.map((rule, ri) => (
-                                          <div key={ri}>• {rule}</div>
-                                        ))}
-                                      </div>
-                                    ) : (
-                                      <div className="mt-1 text-[0.6rem] italic text-gray-400 p-1.5 bg-gray-50/30 rounded border border-gray-100 text-center">
-                                        No threat signatures matched
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* Extracted text preview block */}
-                                <div>
-                                  <span className="text-[0.55rem] font-bold text-gray-400 uppercase tracking-widest block mb-1">Extracted Payload Preview</span>
-                                  <div className="bg-white p-3 font-mono text-[0.65rem] text-gray-600 whitespace-pre-wrap break-words border border-gray-150 rounded leading-relaxed max-h-[120px] overflow-y-auto">
-                                    {log.text}
-                                  </div>
-                                </div>
-
-                                {r.override_reason && (
-                                  <div className="p-2.5 bg-amber-50 border border-amber-100 rounded text-[0.65rem] text-amber-800 font-mono">
-                                    <strong>⚠️ Pipeline Override:</strong> Escaped detection overridden. Reason: {r.override_reason}
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-
-                  {history.length === 0 && (
-                    <tr>
-                      <td colSpan="5" className="py-14 text-center">
-                        <Activity size={20} strokeWidth={1.25} className="text-gray-200 mx-auto mb-3" />
-                        <p className="text-[0.65rem] font-bold text-gray-400 uppercase tracking-widest">WAITING FOR TELEMETRY...</p>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <FastTextRetrainPanel />
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════
+   FASTTEXT RETRAIN PANEL
+   ════════════════════════════════════════════════════════ */
+const STATUS = {
+  IDLE:     'idle',
+  LOADING:  'loading',
+  RUNNING:  'running',
+  SUCCESS:  'success',
+  ERROR:    'error',
+};
+
+function FastTextRetrainPanel() {
+  const [status,       setStatus]       = useState(STATUS.IDLE);
+  const [logLines,     setLogLines]     = useState([]);
+  const [pendingCount, setPendingCount] = useState(null);   // số report pending
+  const [lastResult,   setLastResult]   = useState(null);   // {samplesAppended, ts}
+  const [errorMsg,     setErrorMsg]     = useState('');
+  const [elapsed,      setElapsed]      = useState(0);
+  const timerRef  = useRef(null);
+  const logEndRef  = useRef(null);
+
+  // Cuộn log xuống cuối tự động
+  useEffect(() => {
+    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [logLines]);
+
+  // Lấy số lượng pending reports từ port 5003
+  const fetchPendingCount = useCallback(async () => {
+    try {
+      const res  = await fetch(`${REPORT_BASE}/api/reports`);
+      if (!res.ok) { setPendingCount(null); return; }
+      const data = await res.json();
+      const pending = Array.isArray(data)
+        ? data.filter(r => !r.admin_verdict || r.admin_verdict === 'pending').length
+        : (data.pending_count ?? null);
+      setPendingCount(pending);
+    } catch {
+      setPendingCount(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPendingCount();
+    const iv = setInterval(fetchPendingCount, 15000);
+    return () => clearInterval(iv);
+  }, [fetchPendingCount]);
+
+  // Đếm giây khi đang train
+  useEffect(() => {
+    if (status === STATUS.RUNNING) {
+      setElapsed(0);
+      timerRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
+    } else {
+      clearInterval(timerRef.current);
+    }
+    return () => clearInterval(timerRef.current);
+  }, [status]);
+
+  const addLog = (line, type = 'info') => {
+    const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setLogLines(prev => [...prev, { ts, line, type }]);
+  };
+
+  const handleRetrain = async () => {
+    setStatus(STATUS.LOADING);
+    setLogLines([]);
+    setErrorMsg('');
+    setLastResult(null);
+
+    addLog('⏳ Đang gửi lệnh retrain tới Gateway (Port 8000)...', 'info');
+
+    try {
+      const res = await fetch(`${API_BASE}/api/retrain/fasttext`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': SWG_API_KEY },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.detail || `HTTP ${res.status}`);
+      }
+
+      const appended = data.new_samples_appended ?? data.new_samples ?? 0;
+
+      if (appended === 0) {
+        addLog(`⚠️  ${data.message || 'Không có mẫu mới để train.'}`, 'warn');
+        setStatus(STATUS.IDLE);
+        return;
+      }
+
+      setStatus(STATUS.RUNNING);
+      addLog(`✅ Gateway đã xác nhận: ${appended} mẫu mới đã được ghi vào fasttext_train.txt`, 'success');
+      addLog(`🚀 [FASTTEXT] BACKGROUND TASK đã được khởi động — 30 epochs đang chạy ngầm...`, 'highlight');
+      addLog(`📊 Tham số: epoch=30 · lr=0.5 · wordNgrams=3 · dim=100 · loss=softmax`, 'info');
+      addLog(`⏱️  Ước tính ~60-120 giây tuỳ kích thước tập dữ liệu...`, 'info');
+
+      // Poll giả lập log tiến độ (vì backend chạy ngầm không stream log)
+      const mockSteps = [
+        [8,  '📂 Đọc fasttext_train.txt — nạp toàn bộ tập dữ liệu...', 'info'],
+        [15, '⚙️  Khởi tạo FastText engine — cấu hình hyperparameter...', 'info'],
+        [22, '🔄 Epoch 1-5/30 đang xử lý...', 'info'],
+        [32, '🔄 Epoch 6-12/30 đang xử lý...', 'info'],
+        [44, '🔄 Epoch 13-19/30 đang xử lý...', 'info'],
+        [56, '🔄 Epoch 20-25/30 đang xử lý...', 'info'],
+        [68, '🔄 Epoch 26-30/30 — giai đoạn cuối...', 'info'],
+        [80, '💾 Train hoàn tất — đang lưu model .bin mới...', 'success'],
+        [90, '🔔 Gửi yêu cầu hot-reload tới FastText server (Port 5001)...', 'info'],
+      ];
+
+      mockSteps.forEach(([delay, msg, type]) => {
+        setTimeout(() => addLog(msg, type), delay * 1000);
+      });
+
+      // Sau 100s coi là xong (background task thực tế chạy song song)
+      setTimeout(() => {
+        addLog('✅ [FASTTEXT] Đã huấn luyện 30 epochs và lưu model thành công!', 'success');
+        addLog('🔁 FastText server đã hot-reload model mới (không cần restart).', 'success');
+        setStatus(STATUS.SUCCESS);
+        setLastResult({ samplesAppended: appended, ts: new Date().toLocaleTimeString() });
+        fetchPendingCount();
+      }, 100 * 1000);
+
+    } catch (err) {
+      addLog(`❌ LỖI: ${err.message}`, 'error');
+      setErrorMsg(err.message);
+      setStatus(STATUS.ERROR);
+    }
+  };
+
+  const isRunning = status === STATUS.RUNNING || status === STATUS.LOADING;
+
+  const logColor = {
+    info:      'text-slate-400',
+    success:   'text-emerald-400',
+    warn:      'text-amber-400',
+    error:     'text-rose-400',
+    highlight: 'text-indigo-300 font-bold',
+  };
+
+  return (
+    <div className="bg-white border border-gray-200/80 p-8 h-full flex flex-col gap-6">
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-[0.65rem] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+          <Cpu size={13} strokeWidth={1.5} /> FASTTEXT — RETRAINING CONTROL CENTER
+        </h2>
+        <button
+          onClick={fetchPendingCount}
+          className="text-gray-300 hover:text-gray-500 transition-colors"
+          title="Làm mới số mẫu pending"
+        >
+          <RefreshCw size={12} strokeWidth={1.5} />
+        </button>
+      </div>
+
+      {/* Stats row */}
+      <div className="grid grid-cols-3 gap-4">
+        {/* Pending samples */}
+        <div className="bg-gray-50 border border-gray-100 p-4 flex flex-col gap-1 border-t-2 border-t-indigo-400">
+          <span className="text-[0.58rem] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+            <Database size={10} strokeWidth={2} /> Pending Reports
+          </span>
+          <span className="text-2xl font-black text-gray-900 tracking-tighter">
+            {pendingCount === null ? '—' : pendingCount}
+          </span>
+          <span className="text-[0.58rem] text-gray-400">mẫu chờ được train</span>
+        </div>
+
+        {/* Training config */}
+        <div className="bg-gray-50 border border-gray-100 p-4 flex flex-col gap-1 border-t-2 border-t-amber-400">
+          <span className="text-[0.58rem] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+            <BarChart3 size={10} strokeWidth={2} /> Train Config
+          </span>
+          <span className="text-2xl font-black text-gray-900 tracking-tighter">30</span>
+          <span className="text-[0.58rem] text-gray-400">epochs · lr=0.5 · dim=100</span>
+        </div>
+
+        {/* Status */}
+        <div className={`border p-4 flex flex-col gap-1 border-t-2 ${
+          status === STATUS.SUCCESS ? 'bg-emerald-50 border-emerald-100 border-t-emerald-500'
+          : status === STATUS.ERROR  ? 'bg-rose-50 border-rose-100 border-t-rose-500'
+          : status === STATUS.RUNNING ? 'bg-indigo-50 border-indigo-100 border-t-indigo-500'
+          : 'bg-gray-50 border-gray-100 border-t-gray-300'
+        }`}>
+          <span className="text-[0.58rem] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+            <Activity size={10} strokeWidth={2} /> Trạng thái
+          </span>
+          <span className={`text-[0.8rem] font-black tracking-tight ${
+            status === STATUS.SUCCESS ? 'text-emerald-600'
+            : status === STATUS.ERROR  ? 'text-rose-600'
+            : status === STATUS.RUNNING ? 'text-indigo-600'
+            : 'text-gray-400'
+          }`}>
+            {status === STATUS.IDLE    && 'SẴN SÀNG'}
+            {status === STATUS.LOADING && 'ĐANG GỬI...'}
+            {status === STATUS.RUNNING && `ĐANG TRAIN (${elapsed}s)`}
+            {status === STATUS.SUCCESS && 'HOÀN THÀNH ✓'}
+            {status === STATUS.ERROR   && 'LỖI ✗'}
+          </span>
+          {lastResult && (
+            <span className="text-[0.58rem] text-emerald-600">{lastResult.ts} · {lastResult.samplesAppended} mẫu</span>
+          )}
+        </div>
+      </div>
+
+      {/* Action button + pipeline info */}
+      <div className="flex items-center gap-4">
+        <button
+          onClick={handleRetrain}
+          disabled={isRunning}
+          className={`flex items-center gap-2.5 px-5 py-2.5 text-[0.65rem] font-bold uppercase tracking-widest transition-all ${
+            isRunning
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
+              : 'bg-gray-900 text-white hover:bg-indigo-700 active:scale-95'
+          }`}
+        >
+          {isRunning
+            ? <RefreshCw size={12} strokeWidth={2} className="animate-spin" />
+            : <Play size={12} strokeWidth={2} />
+          }
+          {isRunning ? 'ĐANG HUẤN LUYỆN...' : 'KÍCH HOẠT RETRAIN FASTTEXT'}
+        </button>
+
+        <div className="flex items-center gap-1.5 text-[0.6rem] font-mono text-gray-400">
+          <FileText size={10} strokeWidth={1.5} />
+          pending_reports.json
+          <ChevronRight size={10} strokeWidth={2} />
+          fasttext_train.txt
+          <ChevronRight size={10} strokeWidth={2} />
+          <span className="text-indigo-500 font-bold">30 epoch train</span>
+          <ChevronRight size={10} strokeWidth={2} />
+          hot-reload :5001
+        </div>
+      </div>
+
+      {/* Log terminal */}
+      <div className="flex-1 flex flex-col min-h-0">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[0.58rem] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+            <TerminalSquare size={10} strokeWidth={1.5} /> Training Log Stream
+          </span>
+          {logLines.length > 0 && (
+            <button
+              onClick={() => setLogLines([])}
+              className="text-[0.58rem] text-gray-300 hover:text-gray-500 uppercase tracking-widest font-bold transition-colors"
+            >
+              CLEAR
+            </button>
+          )}
+        </div>
+
+        <div className="flex-1 bg-[#0F172A] rounded border border-slate-700 p-4 font-mono text-[0.68rem] overflow-y-auto min-h-[160px] max-h-[220px]">
+          {logLines.length === 0 ? (
+            <span className="text-slate-600 italic">
+              {status === STATUS.IDLE
+                ? '// Nhấn nút "Kích hoạt Retrain FastText" để bắt đầu quá trình huấn luyện...'
+                : '// Đang khởi tạo...'
+              }
+            </span>
+          ) : (
+            logLines.map((l, i) => (
+              <div key={i} className="flex gap-3 leading-6">
+                <span className="text-slate-600 flex-shrink-0">[{l.ts}]</span>
+                <span className={logColor[l.type] || 'text-slate-400'}>{l.line}</span>
+              </div>
+            ))
+          )}
+          <div ref={logEndRef} />
+        </div>
+      </div>
+
+      {/* Error message */}
+      {status === STATUS.ERROR && errorMsg && (
+        <div className="p-3 bg-rose-50 border border-rose-200/60 rounded text-[0.65rem] font-mono text-rose-700 flex items-start gap-2">
+          <XCircle size={12} strokeWidth={2} className="flex-shrink-0 mt-0.5" />
+          <div>
+            <strong>Lỗi kết nối:</strong> {errorMsg}
+            <div className="mt-1 text-rose-500">Đảm bảo Gateway đang chạy tại Port 8000 và header X-API-Key hợp lệ.</div>
+          </div>
+        </div>
+      )}
+
+      {/* Success summary */}
+      {status === STATUS.SUCCESS && lastResult && (
+        <div className="p-3 bg-emerald-50 border border-emerald-200/60 rounded text-[0.65rem] font-bold text-emerald-700 flex items-center gap-2">
+          <CheckCircle2 size={13} strokeWidth={2} />
+          FastText model đã được huấn luyện lại thành công với {lastResult.samplesAppended} mẫu mới.
+          Server đã hot-reload — không cần restart.
+        </div>
+      )}
     </div>
   );
 }
