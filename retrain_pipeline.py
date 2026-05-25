@@ -28,6 +28,7 @@ from datetime import datetime
 from pathlib import Path
 
 import httpx
+import pandas as pd
 
 # ---------------------------------------------------------------------------
 # Cấu hình
@@ -38,6 +39,10 @@ BASE_DIR = Path(__file__).parent
 
 RETRAIN_CSV = BASE_DIR / "re_train_dataset.csv"
 FASTTEXT_TRAIN_TXT = BASE_DIR / "fasttext_train.txt"
+# File dataset gốc mà main_fasttext.py dùng để train từ đầu.
+# Mỗi lần retrain pipeline chạy, dữ liệu mới sẽ được APPEND vào đây
+# để lần sau chạy 'python main_fasttext.py' sẽ có nhiều data hơn.
+VI_DATASET_CSV = BASE_DIR / "csv" / "vi_dataset.csv"
 # LƯU Ý: File fasttext .bin nằm trong thư mục 'scam_detector_distilbert' vì đây là
 # thư mục model chung của toàn dự án, KHÔNG phải model DistilBERT.
 # api_server_fasttext.py load model từ chính path này — KHÔNG được thay đổi.
@@ -151,7 +156,7 @@ def load_and_format_retrain_data() -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# Bước 3: Ghi append vào fasttext_train.txt
+# Bước 3a: Ghi append vào fasttext_train.txt (cho retrain nhanh)
 # ---------------------------------------------------------------------------
 
 def append_to_train_file(lines: list[str]) -> int:
@@ -174,6 +179,81 @@ def append_to_train_file(lines: list[str]) -> int:
 
     logger.info("✓ Đã ghi xong %d dòng vào train file.", len(lines))
     return len(lines)
+
+
+# ---------------------------------------------------------------------------
+# Bước 3b: Append vào csv/vi_dataset.csv — để main_fasttext.py có data mới
+# ---------------------------------------------------------------------------
+
+def append_to_vi_dataset_csv() -> int:
+    """
+    Đọc các dòng đã có admin_verdict trong re_train_dataset.csv,
+    rồi APPEND chúng vào csv/vi_dataset.csv (file gốc mà main_fasttext.py dùng).
+    Chỉ append các dòng chưa tồn tại (dedup theo nội dung text).
+
+    Returns:
+        Số dòng mới đã ghi vào vi_dataset.csv.
+    """
+    if not RETRAIN_CSV.exists():
+        logger.warning("[CSV-MERGE] Không tìm thấy %s — bỏ qua bước merge.", RETRAIN_CSV)
+        return 0
+
+    if not VI_DATASET_CSV.exists():
+        logger.warning("[CSV-MERGE] Không tìm thấy %s — bỏ qua bước merge.", VI_DATASET_CSV)
+        return 0
+
+    # Đọc dataset gốc để dedup
+    try:
+        df_existing = pd.read_csv(VI_DATASET_CSV, encoding="utf-8")
+    except Exception as exc:
+        logger.error("[CSV-MERGE] Lỗi đọc vi_dataset.csv: %s", exc)
+        return 0
+
+    existing_texts: set[str] = set(df_existing.get("Message", df_existing.iloc[:, 0]).astype(str).str.strip().str.lower())
+    rows_before = len(df_existing)
+
+    # Đọc các dòng mới đã được duyệt
+    new_rows: list[dict] = []
+    try:
+        with open(RETRAIN_CSV, newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                verdict: str = row.get(VERDICT_COLUMN, "").strip().lower()
+                text: str    = row.get(TEXT_COLUMN, "").strip()
+                if verdict not in ("safe", "scam") or not text:
+                    continue
+                # Dedup
+                if text.lower() in existing_texts:
+                    continue
+                label = "Scam" if verdict == "scam" else "Legit"
+                new_rows.append({"Message": text, "Label": label})
+                existing_texts.add(text.lower())
+    except Exception as exc:
+        logger.error("[CSV-MERGE] Lỗi đọc re_train_dataset.csv: %s", exc)
+        return 0
+
+    if not new_rows:
+        print("ℹ️  [CSV-MERGE] Không có dòng mới nào cần append vào vi_dataset.csv.", flush=True)
+        return 0
+
+    # Append bằng cách ghi thêm dòng (không rewrite toàn bộ file)
+    try:
+        df_new = pd.DataFrame(new_rows)
+        df_new.to_csv(VI_DATASET_CSV, mode="a", header=False, index=False, encoding="utf-8")
+        rows_after = rows_before + len(new_rows)
+        print("", flush=True)
+        print("=" * 65, flush=True)
+        print("📂 [CSV-MERGE] Đã append dữ liệu vào vi_dataset.csv:", flush=True)
+        print(f"   Trước : {rows_before:,} dòng", flush=True)
+        print(f"   Thêm  : +{len(new_rows)} dòng mới", flush=True)
+        print(f"   Sau   : {rows_after:,} dòng", flush=True)
+        print(f"   → Lần sau chạy 'python main_fasttext.py' sẽ train trên {rows_after:,} mẫu.", flush=True)
+        print("=" * 65, flush=True)
+        logger.info("[CSV-MERGE] vi_dataset.csv: %d → %d dòng (+%d mới)", rows_before, rows_after, len(new_rows))
+        return len(new_rows)
+    except Exception as exc:
+        logger.error("[CSV-MERGE] Lỗi ghi vi_dataset.csv: %s", exc)
+        return 0
 
 
 # ---------------------------------------------------------------------------
@@ -316,48 +396,56 @@ def run_pipeline() -> None:
     logger.info(banner)
 
     # ── Bước 1 & 2: Đọc & format dữ liệu ───────────────────────────────────
-    logger.info("[Bước 1/4] Đọc và định dạng dữ liệu từ CSV...")
+    logger.info("[Bước 1/5] Đọc và định dạng dữ liệu từ CSV...")
     new_lines = load_and_format_retrain_data()
 
     if not new_lines:
         logger.warning("Không có dữ liệu mới hợp lệ để retrain. Pipeline dừng.")
         return
 
-    # ── Bước 3: Append vào train file ───────────────────────────────────────
-    logger.info("[Bước 2/4] Ghi dữ liệu mới vào fasttext_train.txt...")
+    # ── Bước 3a: Append vào fasttext_train.txt ──────────────────────────────
+    logger.info("[Bước 2/5] Ghi dữ liệu mới vào fasttext_train.txt...")
     written = append_to_train_file(new_lines)
     if written == 0:
         logger.error("Ghi dữ liệu thất bại. Pipeline dừng.")
         return
 
+    # ── Bước 3b: Append vào csv/vi_dataset.csv ──────────────────────────────
+    logger.info("[Bước 3/5] Merge dữ liệu mới vào csv/vi_dataset.csv...")
+    csv_appended = append_to_vi_dataset_csv()
+
     # ── Bước 4 & 5: Train + lưu model ───────────────────────────────────────
-    logger.info("[Bước 3/4] Train và lưu FastText model...")
+    logger.info("[Bước 4/5] Train và lưu FastText model...")
     success = train_and_save_model()
     if not success:
         logger.error("Train model thất bại. Pipeline dừng.")
         return
 
     # ── Bước 6: Reload server ────────────────────────────────────────────────
-    logger.info("[Bước 4/4] Thông báo FastText server reload model mới...")
+    logger.info("[Bước 5/5] Thông báo FastText server reload model mới...")
     reloaded = notify_server_reload()
 
     # ── Tóm tắt ─────────────────────────────────────────────────────────────
     print("", flush=True)
     print(banner, flush=True)
     print("  📊 KẾT QUẢ PIPELINE", flush=True)
-    print(f"  Dòng dữ liệu mới đã ghi : {written}", flush=True)
-    print(f"  Train model              : {'✅ Thành công' if success else '❌ Thất bại'}", flush=True)
-    print(f"  Server reload            : {'✅ Thành công' if reloaded else '⚠️  Cần restart server thủ công'}", flush=True)
-    print(f"  Kết thúc lúc             : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
+    print(f"  Dòng mới ghi vào train.txt : {written}", flush=True)
+    print(f"  Dòng mới append vi_dataset : {csv_appended if csv_appended else 0} ({'✅' if csv_appended else 'ℹ️  đã tồn tại'})", flush=True)
+    print(f"  → python main_fasttext.py  : sẽ dùng dataset đã cập nhật", flush=True)
+    print(f"  Train model                : {'✅ Thành công' if success else '❌ Thất bại'}", flush=True)
+    print(f"  Server reload              : {'✅ Thành công' if reloaded else '⚠️  Cần restart server thủ công'}", flush=True)
+    print(f"  Kết thúc lúc              : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
     print(banner, flush=True)
     print("", flush=True)
     logger.info(banner)
     logger.info("  KẾT QUẢ PIPELINE")
-    logger.info("  Dòng dữ liệu mới đã ghi: %d", written)
+    logger.info("  Dòng mới ghi vào train.txt: %d", written)
+    logger.info("  Dòng mới append vi_dataset: %d", csv_appended or 0)
     logger.info("  Train model: %s", "✓ Thành công" if success else "✗ Thất bại")
     logger.info("  Server reload: %s", "✓ Thành công" if reloaded else "⚠ Cần restart server thủ công")
     logger.info("  Kết thúc lúc:  %s", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     logger.info(banner)
+
 
 
 # ---------------------------------------------------------------------------
