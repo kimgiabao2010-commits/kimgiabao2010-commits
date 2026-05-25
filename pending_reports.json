@@ -578,5 +578,45 @@
     "admin_verdict": "scam",
     "verified_at": "2026-05-22T08:05:14.031277",
     "admin_note": ""
+  },
+  {
+    "id": "2c7d1952",
+    "url": "https://www.facebook.com/search/top?q=tin%20tuy%E1%BB%83n%20d%E1%BB%A5ng",
+    "page_text_preview": "Những hình ảnh đầu tiên của Vietjet A330 Neo  Ảnh: Euro Spot Mang mã đăng bạ: VN-A821",
+    "ai_prediction": {
+      "fasttext": {
+        "is_scam": true,
+        "confidence": 99.559485912323,
+        "prediction": "Scam",
+        "ok": true
+      },
+      "distilbert": null
+    },
+    "user_note": "Người dùng báo cáo AI nhận diện sai từ Warning Banner Extension",
+    "reported_at": "2026-05-24T12:56:09.888423",
+    "status": "verified",
+    "admin_verdict": "scam",
+    "verified_at": "2026-05-24T12:58:02.752207",
+    "admin_note": ""
+  },
+  {
+    "id": "4fdee086",
+    "url": "https://www.facebook.com/search/top?q=tin%20tuy%E1%BB%83n%20d%E1%BB%A5ng",
+    "page_text_preview": "CƠ HỘI LÀM VIỆC TẠI SÂN BAY QT TÂN SƠN NHẤT Gia nhập đội ngũ nhân viên chuyên nghiệp của SASCO – ứng tuyển ngay hôm nay!  Các vị trí tuyển dụng: • 50 Nhân viên Bán hàng   • 10 Nhân viên Phục vụ F&B QUYỀN LỢI HẤP DẪN: • Môi trường làm việc chuyên nghiệp tại sân bay quốc tế hiện đại • Thu nhập ổn định, phụ cấp & chế độ phúc lợi theo quy định • Được đào tạo nghiệp vụ bài bản  Gia nhập SASCO - Cùng chúng tôi nâng tầm trải nghiệm khách hàng!",
+    "ai_prediction": {
+      "fasttext": {
+        "is_scam": true,
+        "confidence": 50.35330057144165,
+        "prediction": "Scam",
+        "ok": true
+      },
+      "distilbert": null
+    },
+    "user_note": "Người dùng báo cáo AI nhận diện sai từ Warning Banner Extension",
+    "reported_at": "2026-05-25T10:35:05.561544",
+    "status": "verified",
+    "admin_verdict": "scam",
+    "verified_at": "2026-05-25T10:35:29.675693",
+    "admin_note": ""
   }
 ]
