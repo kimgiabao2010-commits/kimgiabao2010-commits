@@ -164,10 +164,10 @@ function drawSuccessBanner(text, aiData) {
         msg = "CAUTION: TEXT FROM SUSPICIOUS PAGE";
         statusLabel = "STATUS: CONTEXT RISK";
         const attackType = aiData.page_attack_type || "MALICIOUS_DOMAIN";
-        let ftConf = aiData.fasttext ? (aiData.fasttext.confidence * 100).toFixed(1) : null;
-        let aiLine = ftConf ? "FastText: " + ftConf + "%" : "FastText: N/A";
+        let ftRisk = aiData.fasttext ? ((1.0 - aiData.fasttext.confidence) * 100).toFixed(1) : null;
+        let aiLine = ftRisk ? "Risk Score [FastText]: " + ftRisk + "%" : "Risk Score: N/A";
         if (aiData.distilbert) {
-            aiLine += " | DistilBERT: " + aiData.distilbert.confidence_score.toFixed(1) + "%";
+            aiLine += " | [DistilBERT]: " + (100.0 - aiData.distilbert.confidence_score).toFixed(1) + "%";
         }
         detail = "Page URL flagged by WAF [" + attackType + "]. Text may be misleading despite AI classification. " + aiLine;
     } else if (isDegraded) {
@@ -187,18 +187,21 @@ function drawSuccessBanner(text, aiData) {
         statusLabel = "STATUS: SAFE";
         let parts = [];
         if (aiData && aiData.fasttext && aiData.fasttext.confidence != null) {
-            let ftConf = (aiData.fasttext.confidence * 100).toFixed(1);
-            parts.push("FastText: " + ftConf + "%");
+            // Safe -> Risk is 1 - confidence
+            let ftRisk = ((1.0 - aiData.fasttext.confidence) * 100).toFixed(1);
+            parts.push("FastText: " + ftRisk + "%");
         }
         if (aiData && aiData.distilbert && aiData.distilbert.confidence_score != null) {
-            parts.push("DistilBERT: " + aiData.distilbert.confidence_score.toFixed(1) + "%");
+            let dbRisk = (100.0 - aiData.distilbert.confidence_score).toFixed(1);
+            parts.push("DistilBERT: " + dbRisk + "%");
         }
         if (parts.length > 0) {
-            detail = "AI Confidence — " + parts.join(" | ");
+            detail = "Risk Score — " + parts.join(" | ");
         } else if (aiData && aiData.score != null) {
             // fallback: use pipeline score from backend
             let layerLabel = aiData.layer || "AI";
-            detail = "AI Confidence — " + layerLabel + ": " + (aiData.score * 100).toFixed(1) + "%";
+            let fallbackRisk = ((1.0 - aiData.score) * 100).toFixed(1);
+            detail = "Risk Score — " + layerLabel + ": " + fallbackRisk + "%";
         } else {
             detail = "System cleared the payload.";
         }
@@ -247,16 +250,17 @@ function drawWarningBanner(text, aiData) {
     } else {
         let parts = [];
         if (aiData && aiData.fasttext && aiData.fasttext.confidence != null) {
+            // Scam -> Risk is confidence
             parts.push("FastText: " + (aiData.fasttext.confidence * 100).toFixed(1) + "%");
         }
         if (aiData && aiData.distilbert && aiData.distilbert.confidence_score != null) {
             parts.push("DistilBERT: " + aiData.distilbert.confidence_score.toFixed(1) + "%");
         }
         if (parts.length > 0) {
-            detail = "AI Confidence — " + parts.join(" | ");
+            detail = "Risk Score — " + parts.join(" | ");
         } else if (aiData && aiData.score != null) {
             let layerLabel = aiData.layer || "AI";
-            detail = "AI Confidence — " + layerLabel + ": " + (aiData.score * 100).toFixed(1) + "%";
+            detail = "Risk Score — " + layerLabel + ": " + (aiData.score * 100).toFixed(1) + "%";
         }
         // Pattern engine override info
         if (aiData && aiData.pattern_engine && aiData.pattern_engine.is_scam) {
