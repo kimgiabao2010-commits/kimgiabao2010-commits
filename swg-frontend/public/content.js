@@ -165,7 +165,7 @@ function drawSuccessBanner(text, aiData) {
         statusLabel = "STATUS: CONTEXT RISK";
         const attackType = aiData.page_attack_type || "MALICIOUS_DOMAIN";
         let ftConf = aiData.fasttext ? (aiData.fasttext.confidence * 100).toFixed(1) : null;
-        let aiLine = ftConf ? "Safety Score [FastText]: " + ftConf + "%" : "Safety Score: N/A";
+        let aiLine = ftConf ? "AI Confidence [FastText]: " + ftConf + "%" : "AI Confidence: N/A";
         if (aiData.distilbert) {
             aiLine += " | [DistilBERT]: " + aiData.distilbert.confidence_score.toFixed(1) + "%";
         }
@@ -193,11 +193,11 @@ function drawSuccessBanner(text, aiData) {
             parts.push("DistilBERT: " + aiData.distilbert.confidence_score.toFixed(1) + "%");
         }
         if (parts.length > 0) {
-            detail = "Safety Score — " + parts.join(" | ");
+            detail = "AI Confidence — " + parts.join(" | ");
         } else if (aiData && aiData.score != null) {
             // fallback: use pipeline score from backend
             let layerLabel = aiData.layer || "AI";
-            detail = "Safety Score — " + layerLabel + ": " + (aiData.score * 100).toFixed(1) + "%";
+            detail = "AI Confidence — " + layerLabel + ": " + (aiData.score * 100).toFixed(1) + "%";
         } else {
             detail = "System cleared the payload.";
         }
@@ -246,17 +246,17 @@ function drawWarningBanner(text, aiData) {
     } else {
         let parts = [];
         if (aiData && aiData.fasttext && aiData.fasttext.confidence != null) {
-            // Scam -> Threat Score is confidence
+            // Scam -> AI conf is confidence
             parts.push("FastText: " + (aiData.fasttext.confidence * 100).toFixed(1) + "%");
         }
         if (aiData && aiData.distilbert && aiData.distilbert.confidence_score != null) {
             parts.push("DistilBERT: " + aiData.distilbert.confidence_score.toFixed(1) + "%");
         }
         if (parts.length > 0) {
-            detail = "Threat Score — " + parts.join(" | ");
+            detail = "AI Confidence — " + parts.join(" | ");
         } else if (aiData && aiData.score != null) {
             let layerLabel = aiData.layer || "AI";
-            detail = "Threat Score — " + layerLabel + ": " + (aiData.score * 100).toFixed(1) + "%";
+            detail = "AI Confidence — " + layerLabel + ": " + (aiData.score * 100).toFixed(1) + "%";
         }
         // Pattern engine override info
         if (aiData && aiData.pattern_engine && aiData.pattern_engine.is_scam) {
