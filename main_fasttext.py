@@ -136,7 +136,7 @@ def main():
     print(classification_report(y_true, y_pred, zero_division=0))
 
     model.save_model(FASTTEXT_MODEL_FILE)
-    print(f"\n💾 Đã lưu model thành công vào: {FASTTEXT_MODEL_FILE}")
+    print(f"\n✅ [FASTTEXT] Đã huấn luyện 30 epochs và lưu model thành công vào: {FASTTEXT_MODEL_FILE}")
 
     # --- KHU VỰC CHAT THỬ NGHIỆM ---
     print("\n\n" + "="*80)
