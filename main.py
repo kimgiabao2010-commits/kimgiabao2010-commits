@@ -717,27 +717,19 @@ async def api_retrain_fasttext(
     → kích hoạt retrain 30 epochs chạy ngầm (BackgroundTasks).
     """
     # ── Bước 1: Đọc pending_reports.json ─────────────────────────────────
+    reports: list[dict] = []
     try:
         with open(PENDING_REPORTS_PATH, "r", encoding="utf-8") as f:
-            reports: list[dict] = json.load(f)
+            reports = json.load(f)
     except FileNotFoundError:
-        logger.warning("/api/retrain/fasttext: pending_reports.json không tồn tại.")
-        return {
-            "status": "success",
-            "message": "Không có dữ liệu mới — pending_reports.json chưa tồn tại.",
-            "new_samples": 0,
-        }
+        logger.warning("/api/retrain/fasttext: pending_reports.json không tồn tại, sẽ bỏ qua.")
     except json.JSONDecodeError as exc:
         logger.error("/api/retrain/fasttext: JSON parse error — %s", exc)
-        raise HTTPException(status_code=422, detail=f"pending_reports.json bị lỗi định dạng: {exc}")
+        # Không raise exception để vẫn tiếp tục train từ _scan_log_history
+        logger.warning("/api/retrain/fasttext: pending_reports.json bị lỗi định dạng, sẽ bỏ qua.")
 
     if not reports:
-        logger.info("/api/retrain/fasttext: pending_reports.json rỗng, không có dữ liệu mới.")
-        return {
-            "status": "success",
-            "message": "Không có dữ liệu mới — pending_reports.json đang rỗng.",
-            "new_samples": 0,
-        }
+        logger.info("/api/retrain/fasttext: pending_reports.json rỗng.")
 
     # ── Bước 2 & 3: Lọc và format sang chuẩn FastText ───────────────────
     import re as _re
@@ -754,7 +746,7 @@ async def api_retrain_fasttext(
         text = " ".join(text.split())
         return text
 
-    formatted_lines: list[str] = []
+    formatted_lines_set = set() # Dùng set để dedup
     for report in reports:
         # Ưu tiên admin_verdict nếu đã được duyệt; fallback sang status của report
         verdict: str = str(report.get("admin_verdict") or report.get("status") or "").strip().lower()
@@ -778,12 +770,33 @@ async def api_retrain_fasttext(
         if not processed:
             continue
 
-        formatted_lines.append(f"__label__{ft_label} {processed}")
+        formatted_lines_set.add(f"__label__{ft_label} {processed}")
+
+    # ── Bước đệm: Đọc thêm từ lịch sử quét (những cái bôi đen vừa quét) ───
+    with _scan_log_lock:
+        recent_scans = list(_scan_log_history)
+        
+    for scan in recent_scans:
+        verdict = str(scan.get("label") or "").strip().lower()
+        if verdict in ("scam", "blocked", "malicious", "attack"):
+            ft_label = "scam"
+        elif verdict in ("safe", "legit", "clean"):
+            ft_label = "legit"
+        else:
+            continue
+            
+        raw_text: str = str(scan.get("text") or "").strip()
+        processed = _preprocess(raw_text)
+        if not processed:
+            continue
+            
+        formatted_lines_set.add(f"__label__{ft_label} {processed}")
+
+    formatted_lines = list(formatted_lines_set)
 
     if not formatted_lines:
         logger.info(
-            "/api/retrain/fasttext: %d reports đọc được nhưng 0 mẫu hợp lệ (chưa có admin verdict).",
-            len(reports),
+            "/api/retrain/fasttext: Không có dữ liệu hợp lệ từ reports hoặc scan log.",
         )
         return {
             "status": "success",
