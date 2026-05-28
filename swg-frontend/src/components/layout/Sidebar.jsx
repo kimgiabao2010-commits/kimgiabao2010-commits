@@ -17,11 +17,25 @@ const LAYERS = [
 export default function Sidebar({ activePage, onNavigate }) {
   const { wafOnline, aiOnline, distilbertOnline, wafEvents } = useScanStore();
   const [time, setTime] = useState('');
+  const [reportOnline, setReportOnline] = useState(null);
 
   useEffect(() => {
     const tick = () => setTime(new Date().toLocaleTimeString('vi-VN', { hour12: false }));
     tick();
     const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Real health check for Report API (port 5003)
+  useEffect(() => {
+    const checkReport = async () => {
+      try {
+        const res = await fetch('http://localhost:5003/health', { signal: AbortSignal.timeout(3000) });
+        setReportOnline(res.ok);
+      } catch { setReportOnline(false); }
+    };
+    checkReport();
+    const id = setInterval(checkReport, 30000);
     return () => clearInterval(id);
   }, []);
 
@@ -137,10 +151,10 @@ export default function Sidebar({ activePage, onNavigate }) {
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <StatusIcon online={true} customClass="text-purple-500" />
+              <StatusIcon online={reportOnline} />
               <span className="text-[0.65rem] font-semibold text-gray-600 uppercase tracking-wide">Report API</span>
             </div>
-            <span className="font-mono text-[0.55rem] font-bold uppercase tracking-widest text-purple-600">ONLINE</span>
+            <span className={`font-mono text-[0.55rem] font-bold uppercase tracking-widest ${statusColor(reportOnline)}`}>{statusText(reportOnline)}</span>
           </div>
         </div>
       </div>

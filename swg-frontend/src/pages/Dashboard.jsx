@@ -369,7 +369,7 @@ export default function Dashboard() {
               {/* HITL hint */}
               {analytics.riskData[1]?.value > 0 && (
                 <div className="mt-2 p-3 bg-amber-50 border border-amber-200/50 text-[0.62rem] font-bold text-amber-700 uppercase tracking-wider">
-                  QUÁ TRÌNH KIỂM KIỂU {analytics.riskData[1].value} CAS KHÔNG RÕ RÀNG (26–74%) — CẦN ADMIN DUYỆT TỰ CÔNG
+                  CÓ {analytics.riskData[1].value} TRƯỜNG HỢP KHÔNG RÕ RÀNG (26–74%) — CẦN ADMIN DUYỆT THỦ CÔNG
                 </div>
               )}
             </div>
@@ -442,10 +442,7 @@ function FastTextRetrainPanel() {
       const res  = await fetch(`${REPORT_BASE}/api/reports`);
       if (!res.ok) { setPendingCount(null); return; }
       const data = await res.json();
-      const pending = Array.isArray(data)
-        ? data.filter(r => !r.admin_verdict || r.admin_verdict === 'pending').length
-        : (data.pending_count ?? null);
-      setPendingCount(pending);
+      setPendingCount(data.pending_count ?? null);
     } catch {
       setPendingCount(null);
     }
