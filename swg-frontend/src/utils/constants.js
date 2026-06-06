@@ -6,7 +6,7 @@ export const LAYER_DISTILBERT = 'distilbert';
 export const LAYER_RESULT   = 'result';
 
 // ── API Endpoints ──────────────────────────────────────────────
-export const API_BASE_URL        = 'http://localhost:8000';   // WAF Layer 1
+export const API_BASE_URL        = 'https://localhost:8080';  // WAF+Orchestrator (HTTPS port 8080)
 export const AI_BASE_URL         = 'http://localhost:5001';   // FastText Layer 2
 export const DISTILBERT_BASE_URL = 'http://localhost:5002';   // DistilBERT Layer 3
 

@@ -354,7 +354,7 @@ export default function VerificationQueue() {
 
     setIsRetraining(true);
     try {
-      const res = await fetch('http://localhost:8000/api/retrain/fasttext', {
+      const res = await fetch('https://localhost:8080/api/retrain/fasttext', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

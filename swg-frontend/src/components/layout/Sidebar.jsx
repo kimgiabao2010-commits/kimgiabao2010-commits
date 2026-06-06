@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import useScanStore from '../../store/scanStore';
-import { LayoutGrid, List, GitPullRequest, Activity, Network, Shield, Cpu, Terminal } from 'lucide-react';
+import useAuthStore from '../../store/authStore';
+import { LayoutGrid, List, GitPullRequest, Activity, Network, Shield, Cpu, Terminal, LogOut, User } from 'lucide-react';
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'TỔNG QUAN', icon: LayoutGrid },
@@ -14,8 +15,9 @@ const LAYERS = [
   { tag: 'L3', label: 'DistilBERT',  color: 'text-amber-600', bg: 'bg-amber-50' },
 ];
 
-export default function Sidebar({ activePage, onNavigate }) {
+export default function Sidebar({ activePage, onNavigate, onLogout }) {
   const { wafOnline, aiOnline, distilbertOnline, wafEvents } = useScanStore();
+  const username = useAuthStore(s => s.username);
   const [time, setTime] = useState('');
   const [reportOnline, setReportOnline] = useState(null);
 
@@ -122,8 +124,34 @@ export default function Sidebar({ activePage, onNavigate }) {
         </div>
       </nav>
 
+      {/* Admin info + Logout */}
+      <div className="px-6 py-4 border-t border-gray-200 bg-gray-50/80">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center">
+              <User size={13} strokeWidth={2} className="text-indigo-600" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[0.65rem] font-bold text-gray-800 tracking-wide">
+                {username || 'Admin'}
+              </span>
+              <span className="text-[0.55rem] text-gray-400 uppercase tracking-widest">Authenticated</span>
+            </div>
+          </div>
+          <button
+            id="sidebar-logout-btn"
+            onClick={onLogout}
+            title="Đăng xuất"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[0.6rem] font-bold text-gray-500 hover:text-rose-600 hover:bg-rose-50 transition-all duration-200 uppercase tracking-widest border border-transparent hover:border-rose-200"
+          >
+            <LogOut size={12} strokeWidth={2} />
+            <span>Logout</span>
+          </button>
+        </div>
+      </div>
+
       {/* Services Status */}
-      <div className="px-8 py-8 border-t border-gray-200 bg-gray-50/50">
+      <div className="px-8 py-6 border-t border-gray-200 bg-gray-50/50">
         <span className="block text-[0.6rem] font-bold text-gray-400 tracking-widest uppercase mb-5 flex items-center gap-2">
           <Cpu size={12} strokeWidth={1.5} /> Infrastructure
         </span>

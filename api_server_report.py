@@ -1,35 +1,41 @@
 """
 ╔══════════════════════════════════════════════════════════════════╗
-║  SWG Shield — Admin Report API Server                          ║
-║  Port: 5003                                                    ║
-║                                                                ║
-║  Endpoints:                                                    ║
-║    POST /api/report      → Nhận báo cáo từ Extension          ║
-║    GET  /api/reports     → Dashboard đọc danh sách chờ duyệt  ║
-║    POST /api/verify/{id} → Admin xác nhận: scam / safe        ║
+║  SWG Shield — Admin Report API Server (Enterprise: SQLite DB)   ║
+║  Port: 5003                                                     ║
+║                                                                 ║
+║  Endpoints:                                                     ║
+║    POST /api/report      → Nhận báo cáo từ Extension           ║
+║    GET  /api/reports     → Dashboard đọc danh sách chờ duyệt   ║
+║    POST /api/verify/{id} → Admin xác nhận: scam / safe         ║
+║    DELETE /api/report/{id} → Admin xoá report                  ║
+║    GET  /api/verdict/{id}  → Extension poll verdict             ║
 ║    GET  /api/export      → Tải file CSV để re-train DistilBERT ║
-║    GET  /health          → Health check                       ║
+║    GET  /health          → Health check                        ║
 ╚══════════════════════════════════════════════════════════════════╝
+
+Enterprise Upgrade:
+  - Thay thế pending_reports.json bằng SQLite DB (bảng pending_reports)
+  - Thread-safe qua SQLAlchemy session (WAL mode)
+  - Dữ liệu bền vững qua restart, không bị mất khi crash
+  - Vẫn giữ CSV export cho re-train pipeline
 
 Luồng Human-in-the-Loop:
   Extension phát hiện nghi ngờ (confidence 40-80%)
     ↓ POST /api/report
-  Lưu vào pending_reports.json (status: "pending")
+  Lưu vào SQLite DB (status: "pending")
     ↓ Admin mở VerificationQueue trong Dashboard
   GET /api/reports → hiển thị danh sách chờ
     ↓ Admin nhấn [Xác nhận Scam] hoặc [Xác nhận An toàn]
   POST /api/verify/{id}?verdict=scam|safe
-    ↓ Ghi vào re_train_dataset.csv để huấn luyện lại DistilBERT
+    ↓ Ghi vào re_train_dataset.csv để huấn luyện lại
 """
 
 import csv
-import json
 import logging
 import os
 import sys
-import threading
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -37,6 +43,8 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
+
+from database import SessionLocal, PendingReport
 
 # ── Fix Windows console encoding ──────────────────────────────────
 if sys.platform == "win32":
@@ -50,15 +58,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger("admin-report-api")
 
-# ── File paths ────────────────────────────────────────────────────
-BASE_DIR      = Path(__file__).parent
-REPORTS_FILE  = BASE_DIR / "pending_reports.json"
-CSV_FILE      = BASE_DIR / "re_train_dataset.csv"
-
-# Tạo file nếu chưa có
-if not REPORTS_FILE.exists():
-    REPORTS_FILE.write_text("[]", encoding="utf-8")
-    logger.info(f"📄 Đã tạo: {REPORTS_FILE}")
+# ── File paths (CSV vẫn giữ để export cho retrain pipeline) ──────
+BASE_DIR = Path(__file__).parent
+CSV_FILE = BASE_DIR / "re_train_dataset.csv"
 
 if not CSV_FILE.exists():
     with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
@@ -68,9 +70,6 @@ if not CSV_FILE.exists():
                          "ai_distilbert_confidence", "admin_verdict",
                          "verified_at", "reported_at"])
     logger.info(f"📊 Đã tạo: {CSV_FILE}")
-
-# Lock bảo vệ đọc/ghi file đồng thời (thread-safe)
-_file_lock = threading.Lock()
 
 
 # ── Pydantic Schemas ──────────────────────────────────────────────
@@ -105,54 +104,35 @@ class VerifyRequest(BaseModel):
     admin_note: Optional[str] = None
 
 
-# ── Helper: đọc/ghi JSON (thread-safe) ──────────────────────────────────
-def read_reports() -> list[dict]:
-    """Đọc danh sách báo cáo từ file JSON."""
-    try:
-        with _file_lock:
-            text = REPORTS_FILE.read_text(encoding="utf-8")
-            return json.loads(text) if text.strip() else []
-    except (json.JSONDecodeError, FileNotFoundError):
-        return []
-
-
-def write_reports(reports: list[dict]) -> None:
-    """Ghi danh sách báo cáo vào file JSON (atomic write, thread-safe)."""
-    with _file_lock:
-        tmp = REPORTS_FILE.with_suffix(".tmp")
-        tmp.write_text(json.dumps(reports, ensure_ascii=False, indent=2), encoding="utf-8")
-        tmp.replace(REPORTS_FILE)
-
-
-def append_to_csv(report: dict, verdict: str) -> None:
+# ── Helper: Ghi CSV cho retrain pipeline ─────────────────────────
+def append_to_csv(report: PendingReport, verdict: str) -> None:
     """Ghi một dòng vào re_train_dataset.csv để huấn luyện lại."""
-    ai   = report.get("ai_prediction") or {}
+    ai   = report.ai_prediction or {}
     ft   = ai.get("fasttext") or {}
     db   = ai.get("distilbert") or {}
 
-    with _file_lock:
-        with open(CSV_FILE, "a", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow([
-                report.get("id", ""),
-                report.get("url", ""),
-                report.get("page_text_preview", "")[:500],
-                ft.get("prediction", ""),
-                ft.get("confidence", ""),
-                db.get("prediction", ""),
-                db.get("confidence", ""),
-                verdict,
-                datetime.now().isoformat(),
-                report.get("reported_at", ""),
-            ])
-    logger.info(f"📊 CSV: Ghi nhận [{verdict.upper()}] cho {report.get('url', '')[:60]}")
+    with open(CSV_FILE, "a", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            report.id,
+            report.url,
+            (report.page_text_preview or "")[:500],
+            ft.get("prediction", ""),
+            ft.get("confidence", ""),
+            db.get("prediction", ""),
+            db.get("confidence", ""),
+            verdict,
+            datetime.now(timezone.utc).isoformat(),
+            report.reported_at.isoformat() if report.reported_at else "",
+        ])
+    logger.info(f"📊 CSV: Ghi nhận [{verdict.upper()}] cho {report.url[:60]}")
 
 
 # ══ FastAPI App ════════════════════════════════════════════════════
 app = FastAPI(
-    title="SWG Shield — Admin Report API",
-    description="Human-in-the-Loop: Nhận báo cáo từ Extension, Admin xác nhận, xuất CSV để re-train",
-    version="1.0.0",
+    title="SWG Shield — Admin Report API (Enterprise DB)",
+    description="Human-in-the-Loop: SQLite DB + CSV Export cho re-train pipeline",
+    version="2.0.0",
 )
 
 app.add_middleware(
@@ -172,48 +152,58 @@ async def receive_report(body: ReportRequest):
     Extension gọi endpoint này khi người dùng nhấn nút
     'Báo cáo Admin (Nghi ngờ AI nhận diện sai)'.
 
-    Lưu báo cáo vào pending_reports.json với status='pending'.
+    Lưu báo cáo vào SQLite DB với status='pending'.
     """
-    reports = read_reports()
+    db = SessionLocal()
+    try:
+        # Kiểm tra duplicate (cùng URL và cùng nội dung text đã pending)
+        existing = (
+            db.query(PendingReport)
+            .filter(
+                PendingReport.url == body.url,
+                PendingReport.page_text_preview == body.page_text_preview[:1000],
+                PendingReport.status == "pending"
+            )
+            .first()
+        )
+        if existing:
+            logger.info(f"⚠️  Duplicate report cho URL và text đã pending: {body.url[:60]}")
+            return {
+                "success": True,
+                "message": "Nội dung này từ URL này đã có trong hàng chờ kiểm định.",
+                "report_id": existing.id,
+                "duplicate": True,
+            }
 
-    # Kiểm tra duplicate (cùng URL đã pending)
-    existing = next(
-        (r for r in reports if r.get("url") == body.url and r.get("status") == "pending"),
-        None,
-    )
-    if existing:
-        logger.info(f"⚠️  Duplicate report cho URL đã pending: {body.url[:60]}")
+        # Tạo bản ghi mới
+        report_id = str(uuid.uuid4())[:8]
+        new_report = PendingReport(
+            id=report_id,
+            url=body.url,
+            page_text_preview=body.page_text_preview[:1000],
+            ai_prediction=body.ai_prediction.model_dump() if body.ai_prediction else {},
+            user_note=body.user_note or "",
+            reported_at=datetime.fromisoformat(body.reported_at) if body.reported_at else datetime.now(timezone.utc),
+            status="pending",
+            admin_verdict=None,
+            verified_at=None,
+        )
+        db.add(new_report)
+        db.commit()
+
+        logger.info(f"📥 Báo cáo mới [{report_id}]: {body.url[:60]}")
         return {
             "success": True,
-            "message": "URL này đã có trong hàng chờ kiểm định.",
-            "report_id": existing["id"],
-            "duplicate": True,
+            "message": "Báo cáo đã được lưu vào DB, chờ Admin kiểm định.",
+            "report_id": report_id,
+            "duplicate": False,
         }
-
-    # Tạo bản ghi mới
-    report_id = str(uuid.uuid4())[:8]
-    new_report = {
-        "id":               report_id,
-        "url":              body.url,
-        "page_text_preview": body.page_text_preview[:1000],
-        "ai_prediction":    body.ai_prediction.model_dump() if body.ai_prediction else {},
-        "user_note":        body.user_note or "",
-        "reported_at":      body.reported_at or datetime.now().isoformat(),
-        "status":           "pending",
-        "admin_verdict":    None,
-        "verified_at":      None,
-    }
-
-    reports.append(new_report)
-    write_reports(reports)
-
-    logger.info(f"📥 Báo cáo mới [{report_id}]: {body.url[:60]}")
-    return {
-        "success": True,
-        "message": "Báo cáo đã được lưu, chờ Admin kiểm định.",
-        "report_id": report_id,
-        "duplicate": False,
-    }
+    except Exception as exc:
+        db.rollback()
+        logger.error(f"DB error in receive_report: {exc}")
+        raise HTTPException(status_code=500, detail=str(exc))
+    finally:
+        db.close()
 
 
 @app.get("/api/reports")
@@ -225,24 +215,36 @@ async def get_reports(
     Dashboard Admin gọi để lấy danh sách báo cáo.
     Mặc định trả về tất cả, có thể lọc theo status.
     """
-    reports = read_reports()
+    db = SessionLocal()
+    try:
+        query = db.query(PendingReport)
 
-    if status and status != "all":
-        reports = [r for r in reports if r.get("status") == status]
+        if status and status != "all":
+            query = query.filter(PendingReport.status == status)
 
-    # Sắp xếp: pending trước, mới nhất trước
-    reports.sort(key=lambda r: (r.get("status") != "pending", r.get("reported_at", "")), reverse=False)
-    reports = reports[:limit]
+        # Sắp xếp: pending trước, mới nhất trước
+        reports = (
+            query
+            .order_by(
+                PendingReport.status.desc(),      # 'pending' trước 'verified'
+                PendingReport.reported_at.desc(),  # Mới nhất trước
+            )
+            .limit(limit)
+            .all()
+        )
 
-    pending_count  = sum(1 for r in read_reports() if r.get("status") == "pending")
-    verified_count = sum(1 for r in read_reports() if r.get("status") == "verified")
+        # Đếm tổng (query riêng để chính xác)
+        pending_count  = db.query(PendingReport).filter(PendingReport.status == "pending").count()
+        verified_count = db.query(PendingReport).filter(PendingReport.status == "verified").count()
 
-    return {
-        "reports":       reports,
-        "total":         len(reports),
-        "pending_count": pending_count,
-        "verified_count": verified_count,
-    }
+        return {
+            "reports":        [r.to_dict() for r in reports],
+            "total":          len(reports),
+            "pending_count":  pending_count,
+            "verified_count": verified_count,
+        }
+    finally:
+        db.close()
 
 
 @app.post("/api/verify/{report_id}")
@@ -251,54 +253,70 @@ async def verify_report(report_id: str, body: VerifyRequest):
     Admin bấm [Xác nhận: Là Scam] hoặc [Xác nhận: Là An toàn].
 
     Kết quả:
-      - Cập nhật status trong pending_reports.json → 'verified'
-      - Ghi một dòng vào re_train_dataset.csv để re-train DistilBERT
+      - Cập nhật status trong DB → 'verified'
+      - Ghi một dòng vào re_train_dataset.csv để re-train
     """
-    reports = read_reports()
-    idx = next((i for i, r in enumerate(reports) if r.get("id") == report_id), None)
+    db = SessionLocal()
+    try:
+        report = db.query(PendingReport).filter(PendingReport.id == report_id).first()
 
-    if idx is None:
-        raise HTTPException(status_code=404, detail=f"Không tìm thấy báo cáo ID={report_id}")
+        if not report:
+            raise HTTPException(status_code=404, detail=f"Không tìm thấy báo cáo ID={report_id}")
 
-    report = reports[idx]
-    if report.get("status") == "verified":
+        if report.status == "verified":
+            return {
+                "success": True,
+                "message": "Báo cáo này đã được xác nhận trước đó.",
+                "report": report.to_dict(),
+            }
+
+        # Cập nhật
+        report.status       = "verified"
+        report.admin_verdict = body.verdict
+        report.verified_at  = datetime.now(timezone.utc)
+        report.admin_note   = body.admin_note or ""
+        db.commit()
+
+        # Ghi CSV cho retrain pipeline
+        append_to_csv(report, body.verdict)
+
+        verdict_display = "🚨 SCAM" if body.verdict == "scam" else "✅ AN TOÀN"
+        logger.info(f"✔️  Admin xác nhận [{report_id}] → {verdict_display}")
+
         return {
             "success": True,
-            "message": "Báo cáo này đã được xác nhận trước đó.",
-            "report": report,
+            "message": f"Đã xác nhận: {verdict_display}. Dữ liệu đã ghi vào CSV để re-train.",
+            "report":  report.to_dict(),
         }
-
-    # Cập nhật
-    report["status"]       = "verified"
-    report["admin_verdict"] = body.verdict
-    report["verified_at"]  = datetime.now().isoformat()
-    report["admin_note"]   = body.admin_note or ""
-    reports[idx] = report
-
-    write_reports(reports)
-    append_to_csv(report, body.verdict)
-
-    verdict_display = "🚨 SCAM" if body.verdict == "scam" else "✅ AN TOÀN"
-    logger.info(f"✔️  Admin xác nhận [{report_id}] → {verdict_display}")
-
-    return {
-        "success": True,
-        "message": f"Đã xác nhận: {verdict_display}. Dữ liệu đã ghi vào CSV để re-train.",
-        "report":  report,
-    }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        db.rollback()
+        logger.error(f"DB error in verify_report: {exc}")
+        raise HTTPException(status_code=500, detail=str(exc))
+    finally:
+        db.close()
 
 
 @app.delete("/api/report/{report_id}")
 async def delete_report(report_id: str):
     """Xóa một báo cáo khỏi danh sách chờ (Admin dismiss)."""
-    reports = read_reports()
-    before = len(reports)
-    reports = [r for r in reports if r.get("id") != report_id]
-    if len(reports) == before:
-        raise HTTPException(status_code=404, detail=f"Không tìm thấy báo cáo ID={report_id}")
-    write_reports(reports)
-    logger.info(f"🗑️  Đã xóa báo cáo [{report_id}]")
-    return {"success": True, "message": f"Đã xóa báo cáo {report_id}."}
+    db = SessionLocal()
+    try:
+        report = db.query(PendingReport).filter(PendingReport.id == report_id).first()
+        if not report:
+            raise HTTPException(status_code=404, detail=f"Không tìm thấy báo cáo ID={report_id}")
+        db.delete(report)
+        db.commit()
+        logger.info(f"🗑️  Đã xóa báo cáo [{report_id}]")
+        return {"success": True, "message": f"Đã xóa báo cáo {report_id}."}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))
+    finally:
+        db.close()
 
 
 @app.get("/api/verdict/{report_id}")
@@ -311,20 +329,22 @@ async def get_verdict(report_id: str):
       - status='pending'  → Admin chưa xem
       - status='verified' → Admin đã xác nhận (kèm admin_verdict: 'scam' | 'safe')
     """
-    reports = read_reports()
-    report = next((r for r in reports if r.get("id") == report_id), None)
+    db = SessionLocal()
+    try:
+        report = db.query(PendingReport).filter(PendingReport.id == report_id).first()
+        if not report:
+            raise HTTPException(status_code=404, detail=f"Không tìm thấy báo cáo ID={report_id}")
 
-    if not report:
-        raise HTTPException(status_code=404, detail=f"Không tìm thấy báo cáo ID={report_id}")
-
-    return {
-        "report_id":     report_id,
-        "status":        report.get("status"),          # 'pending' | 'verified'
-        "admin_verdict": report.get("admin_verdict"),   # 'scam' | 'safe' | None
-        "admin_note":    report.get("admin_note", ""),
-        "verified_at":   report.get("verified_at"),
-        "url":           report.get("url", ""),
-    }
+        return {
+            "report_id":     report_id,
+            "status":        report.status,
+            "admin_verdict": report.admin_verdict,
+            "admin_note":    report.admin_note or "",
+            "verified_at":   report.verified_at.isoformat() if report.verified_at else None,
+            "url":           report.url,
+        }
+    finally:
+        db.close()
 
 
 @app.get("/api/export")
@@ -343,24 +363,28 @@ async def export_csv():
 
 @app.get("/health")
 async def health():
-    """Health check endpoint."""
-    reports      = read_reports()
-    pending_cnt  = sum(1 for r in reports if r.get("status") == "pending")
-    verified_cnt = sum(1 for r in reports if r.get("status") == "verified")
-    csv_rows     = 0
+    """Health check endpoint — đọc trực tiếp từ DB."""
+    db = SessionLocal()
+    try:
+        pending_cnt  = db.query(PendingReport).filter(PendingReport.status == "pending").count()
+        verified_cnt = db.query(PendingReport).filter(PendingReport.status == "verified").count()
+    finally:
+        db.close()
+
+    csv_rows = 0
     if CSV_FILE.exists():
         with open(CSV_FILE, encoding="utf-8") as f:
             csv_rows = max(0, sum(1 for _ in f) - 1)  # trừ header
 
     return {
-        "status":          "healthy",
-        "service":         "Admin Report API",
-        "port":            5003,
-        "reports_file":    str(REPORTS_FILE),
-        "csv_file":        str(CSV_FILE),
-        "pending_reports": pending_cnt,
+        "status":           "healthy",
+        "service":          "Admin Report API (Enterprise DB)",
+        "port":             5003,
+        "database":         "SQLite (swg_shield.db)",
+        "csv_file":         str(CSV_FILE),
+        "pending_reports":  pending_cnt,
         "verified_reports": verified_cnt,
-        "csv_rows":        csv_rows,
+        "csv_rows":         csv_rows,
     }
 
 
@@ -369,11 +393,11 @@ if __name__ == "__main__":
     import uvicorn
 
     print("=" * 62)
-    print("  🛡️  SWG SHIELD — ADMIN REPORT API SERVER")
+    print("  🛡️  SWG SHIELD — ADMIN REPORT API SERVER (Enterprise DB)")
     print("=" * 62)
-    print(f"  📡 URL:          http://127.0.0.1:5003")
-    print(f"  📄 Reports file: {REPORTS_FILE}")
-    print(f"  📊 CSV file:     {CSV_FILE}")
+    print(f"  📡 URL:       http://127.0.0.1:5003")
+    print(f"  💾 Database:  SQLite → swg_shield.db")
+    print(f"  📊 CSV file:  {CSV_FILE}")
     print("=" * 62)
     print("  Endpoints:")
     print("    POST /api/report          ← Extension gửi báo cáo")

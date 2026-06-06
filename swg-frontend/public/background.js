@@ -28,7 +28,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
         try {
             // Send request to Central Gateway (Port 8000)
-            const res = await fetch("http://localhost:8000/api/scan", {
+            const res = await fetch("https://localhost:8080/api/scan", {
                 method: "POST",
                 headers: SWG_GATEWAY_HEADERS,
                 body: JSON.stringify({ text: targetText, url: tab.url })
@@ -113,7 +113,7 @@ function _postScanLog(text, aiData, isMalicious) {
         pattern_engine: aiData?.pattern_engine || null,
     });
 
-    const doPost = () => fetch("http://localhost:8000/api/scan-log", {
+    const doPost = () => fetch("https://localhost:8080/api/scan-log", {
         method: "POST",
         headers: { ...SWG_GATEWAY_HEADERS },
         body: payload
@@ -151,7 +151,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
 
     console.log("🔗 Đang kiểm tra URL qua WAF:", details.url);
     try {
-        const response = await fetch('http://localhost:8000/api/scan', {
+        const response = await fetch('https://localhost:8080/api/scan', {
             method: 'POST',
             headers: SWG_GATEWAY_HEADERS,
             body: JSON.stringify({ text: details.url, url: details.url })

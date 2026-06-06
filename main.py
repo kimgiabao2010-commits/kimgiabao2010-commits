@@ -1,10 +1,11 @@
 """
-main.py — SWG Shield v4.0 (Code Freeze)
-=========================================
+main.py — SWG Shield v4.1 (Enterprise Upgrade)
+================================================
 Enterprise upgrades applied:
   • Task 1 : TTLCache (cachetools) + Rate Limiting (slowapi) 60 req/min/IP
   • Task 2 : Zero-Trust — X-API-Key header validation on /api/scan
   • Task 3 : WAF hot-reload via POST /api/waf/reload (zero downtime)
+  • Task 4 : Connection Pooling — shared httpx.AsyncClient via lifespan
   • Env-var-aware upstream URLs (FASTTEXT_URL / DISTILBERT_URL)
 
 Pipeline POST /api/scan:
@@ -40,14 +41,18 @@ import logging
 import os
 import re
 import time
+from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from urllib.parse import urlparse
 
 import httpx
+import jwt  # PyJWT
 from cachetools import TTLCache
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -57,6 +62,10 @@ from waf.waf_engine import WafEngine
 from waf.waf_logger import log_alert
 from waf.scam_pattern_engine import analyze_scam_patterns
 from retrain_pipeline import append_to_train_file, run_pipeline as retrain_fasttext
+from database import (
+    get_db, ScanLog, PendingReport, SessionLocal,
+    Admin, create_admin, get_admin_by_username, verify_admin_password,
+)
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -84,7 +93,7 @@ def _cache_key(text: str, url: str | None) -> str:
     return f"{hash(text)}::{hash(url or '')}"
 
 # ---------------------------------------------------------------------------
-# Task 2: Zero-Trust — API Key
+# Task 2: Zero-Trust — API Key (vẫn giữ cho Browser Extension và /api/scan)
 # ---------------------------------------------------------------------------
 API_KEY = "swg-vnu-is-2026"
 
@@ -101,6 +110,79 @@ def verify_api_key(request: Request):
         )
 
 # ---------------------------------------------------------------------------
+# JWT Configuration — Admin Dashboard Auth
+# ---------------------------------------------------------------------------
+# SECRET_KEY nên được lấy từ biến môi trường trong production!
+# Dùng: export JWT_SECRET="<random-64-char-string>"
+JWT_SECRET_KEY: str = os.getenv(
+    "JWT_SECRET",
+    "swg-shield-jwt-super-secret-vnu-2026-do-not-use-in-production"
+)
+JWT_ALGORITHM: str = "HS256"      # HMAC-SHA256 — đủ mạnh cho internal service
+JWT_EXPIRE_DAYS: int = 1          # Token hết hạn sau 1 ngày
+
+_bearer_scheme = HTTPBearer(auto_error=False)  # Không tự raise lỗi, ta xử lý thủ công
+
+
+def create_access_token(username: str) -> str:
+    """
+    Tạo JWT Access Token.
+
+    Payload có 2 claim quan trọng:
+      - sub  : chủ thể token (username admin)
+      - exp  : thời điểm hết hạn (UTC)
+
+    Token được ký bằng HMAC-SHA256 với JWT_SECRET_KEY.
+    Frontend lưu token này vào localStorage và đính kèm vào mọi request.
+    """
+    expire = datetime.now(timezone.utc) + timedelta(days=JWT_EXPIRE_DAYS)
+    payload = {
+        "sub":  username,        # Subject — identity
+        "exp":  expire,          # Expiration time (tự động expire trên server)
+        "iat":  datetime.now(timezone.utc),  # Issued at
+        "type": "admin_access",  # Custom claim để phân biệt với các token khác
+    }
+    return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+
+
+def verify_jwt_token(
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
+) -> str:
+    """
+    FastAPI Dependency: xác thực JWT Bearer token từ header:
+        Authorization: Bearer <token>
+
+    Lưu ý vướt qua các tấn công:
+      - Signature tamper: PyJWT sẽ raise DecodeError nếu payload bị sửa.
+      - Token expired: PyJWT sẽ raise ExpiredSignatureError.
+      - Missing token: trả 401 rõ ràng.
+
+    Trả về username (str) nếu hợp lệ — có thể dùng trong handler.
+    """
+    if not credentials or not credentials.credentials:
+        raise HTTPException(
+            status_code=401,
+            detail={"status": "UNAUTHORIZED", "message": "Bearer token bị thiếu hoặc rỗng."},
+        )
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        username: str = payload.get("sub", "")
+        if not username:
+            raise HTTPException(status_code=401, detail={"message": "Token thiếu claim 'sub'."})
+        return username
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=401,
+            detail={"status": "TOKEN_EXPIRED", "message": "Token đã hết hạn. Vui lòng đăng nhập lại."},
+        )
+    except jwt.InvalidTokenError as exc:
+        raise HTTPException(
+            status_code=401,
+            detail={"status": "INVALID_TOKEN", "message": f"Token không hợp lệ: {str(exc)}"},
+        )
+
+# ---------------------------------------------------------------------------
 # Upstream AI URLs — env-var first, localhost fallback (Dev mode)
 # ---------------------------------------------------------------------------
 FASTTEXT_URL   = "http://localhost:5001/predict"
@@ -108,9 +190,9 @@ DISTILBERT_URL = "http://localhost:5002/predict"
 FASTTEXT_HEALTH   = "http://localhost:5001/health"
 DISTILBERT_HEALTH = "http://localhost:5002/health"
 
-HIGH_CONF_THRESHOLD = 0.75
+HIGH_CONF_THRESHOLD = 0.95
 LOW_CONF_THRESHOLD  = 0.40
-AI_TIMEOUT = 5.0  # Giảm từ 10s → 5s để tránh treo UI
+AI_TIMEOUT = 15.0  # Tăng lên 15s để DistilBERT kịp chạy xong trên CPU
 PATTERN_SCAM_THRESHOLD = 40   # risk_score >= 40 → Pattern engine says SCAM
 
 # ---------------------------------------------------------------------------
@@ -246,15 +328,54 @@ class ScanRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Task 4: Connection Pooling — shared httpx.AsyncClient via lifespan
+# ---------------------------------------------------------------------------
+# Thay vì tạo httpx.AsyncClient() mới mỗi request (tốn TCP handshake),
+# ta tạo MỘT client duy nhất khi app khởi động, tái sử dụng kết nối
+# qua HTTP/1.1 keep-alive, và đóng sạch khi app shutdown.
+# ---------------------------------------------------------------------------
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage shared HTTP client pool across the entire app lifetime."""
+    # ── STARTUP ──────────────────────────────────────────────────────
+    client = httpx.AsyncClient(
+        # Pool tối đa 20 kết nối (10 per host) — đủ cho 2 upstream AI services
+        limits=httpx.Limits(
+            max_connections=20,
+            max_keepalive_connections=10,
+            keepalive_expiry=30,        # Giữ connection sống 30s giữa các request
+        ),
+        timeout=httpx.Timeout(
+            connect=3.0,                # Timeout kết nối TCP
+            read=AI_TIMEOUT,            # Timeout đọc response từ AI
+            write=3.0,                  # Timeout gửi request body
+            pool=5.0,                   # Timeout chờ connection từ pool
+        ),
+        # HTTP/2 disabled — FastText Flask server không hỗ trợ h2
+        http2=False,
+    )
+    app.state.http_client = client
+    logger.info("✓ Shared httpx.AsyncClient initialized (pool: 20 conn, keepalive: 30s)")
+
+    yield  # ← App chạy ở đây
+
+    # ── SHUTDOWN ─────────────────────────────────────────────────────
+    await client.aclose()
+    logger.info("✓ Shared httpx.AsyncClient closed gracefully.")
+
+
+# ---------------------------------------------------------------------------
 # App Init
 # ---------------------------------------------------------------------------
 app = FastAPI(
-    title="SWG Shield — Multi-Layer Orchestrator v4.0",
+    title="SWG Shield — Multi-Layer Orchestrator v4.1",
     description=(
         "Enterprise SWG: WAF → Trusted Bypass → FastText → DistilBERT.\n"
-        "v4.0: TTL Cache · Rate Limiting · Zero-Trust API Key · WAF Hot-Reload · XAI"
+        "v4.1: Connection Pooling · TTL Cache · Rate Limiting · Zero-Trust · WAF Hot-Reload · XAI"
     ),
-    version="4.0.0",
+    version="4.1.0",
+    lifespan=lifespan,
 )
 
 # Register SlowAPI rate-limit error handler
@@ -264,7 +385,11 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://localhost:5173", 
+        "https://127.0.0.1:5173",
+        "https://localhost:8080"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -283,6 +408,104 @@ def _add_cors(response: JSONResponse, request: Request) -> JSONResponse:
     response.headers["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS"
     response.headers["Access-Control-Allow-Headers"] = "*"
     return response
+
+
+# ---------------------------------------------------------------------------
+# Admin Auth Schemas
+# ---------------------------------------------------------------------------
+class AdminCredentials(BaseModel):
+    username: str
+    password: str
+
+
+# ---------------------------------------------------------------------------
+# Endpoint: POST /api/admin/register
+# — Chỉ cho phép tạo Admin khi có X-API-Key hợp lệ
+# — Bảo vệ khỏi việc đăng ký đại trà từ internet
+# ---------------------------------------------------------------------------
+@app.post("/api/admin/register", tags=["Admin Auth"])
+async def admin_register(
+    body: AdminCredentials,
+    request: Request,
+):
+    """
+    Tạo tài khoản Admin mới. Yêu cầu header: X-API-Key: swg-vnu-is-2026.
+
+    Flow bảo mật:
+      1. Kiểm tra X-API-Key (chỉ superadmin/DevOps mới biết key này).
+      2. Hash mật khẩu bằng bcrypt trước khi lưu vào SQLite.
+      3. Trả về thông tin admin (KHÔNG trả về password hash).
+    """
+    # Guard: kiểm tra API key — nừu thiếu hoặc sai được thì từ chối ngay
+    api_key = request.headers.get("X-API-Key", "")
+    if api_key != API_KEY:
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "status": "UNAUTHORIZED",
+                "message": "X-API-Key không hợp lệ. Chỉ superadmin mới có thể tạo tài khoản.",
+            },
+        )
+
+    # Validate: username và password không được rỗng
+    username = body.username.strip()
+    password = body.password.strip()
+    if not username or not password:
+        raise HTTPException(status_code=422, detail="Username và password không được để trống.")
+    if len(password) < 8:
+        raise HTTPException(status_code=422, detail="Mật khẩu phải có ít nhất 8 ký tự.")
+
+    try:
+        admin = create_admin(username, password)  # bcrypt hash xảy ra ở đây
+        logger.info("Admin mới được tạo: '%s'", username)
+        return {
+            "status": "ok",
+            "message": f"Tài khoản admin '{admin.username}' đã được tạo thành công.",
+            "admin": admin.to_dict(),
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))  # Conflict: username trùng
+
+
+# ---------------------------------------------------------------------------
+# Endpoint: POST /api/admin/login
+# — Nhận username/password, kiểm tra DB, trả về JWT access_token
+# ---------------------------------------------------------------------------
+@app.post("/api/admin/login", tags=["Admin Auth"])
+async def admin_login(body: AdminCredentials):
+    """
+    Đăng nhập Admin Dashboard.
+
+    JWT Flow:
+      1. Tìm admin bằng username trong SQLite.
+      2. verify_admin_password(): so sánh mật khẩu thô với bcrypt hash trong DB.
+      3. Nếu khớp → tạo JWT (HS256, 1 ngày) và trả về.
+      4. Frontend lưu JWT vào localStorage và đính kèm vào mọi request tiếp theo.
+    """
+    admin: Admin | None = get_admin_by_username(body.username.strip())
+
+    # Trả thông báo chung chung — không tiết lộ "username không tồn tại"
+    # để chống user enumeration attack
+    invalid_credentials_exc = HTTPException(
+        status_code=401,
+        detail={"status": "INVALID_CREDENTIALS", "message": "Username hoặc mật khẩu không đúng."},
+    )
+
+    if not admin:
+        raise invalid_credentials_exc
+
+    if not verify_admin_password(body.password, admin.hashed_password):
+        raise invalid_credentials_exc
+
+    # Tạo và trả về JWT
+    access_token = create_access_token(admin.username)
+    logger.info("Admin '%s' đăng nhập thành công.", admin.username)
+    return {
+        "access_token": access_token,
+        "token_type":   "bearer",
+        "username":     admin.username,
+        "expires_in":   JWT_EXPIRE_DAYS * 24 * 3600,  # seconds
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -371,10 +594,14 @@ async def waf_middleware(request: Request, call_next):
 # Task 3: WAF Hot-Reload Endpoint
 # ---------------------------------------------------------------------------
 @app.post("/api/waf/reload")
-async def waf_hot_reload(request: Request, _: None = Depends(verify_api_key)):
+async def waf_hot_reload(
+    request: Request,
+    _key: None = Depends(verify_api_key),
+    _jwt: str  = Depends(verify_jwt_token),
+):
     """
     Reload WAF rules from waf_rules.json at runtime — zero downtime.
-    Requires X-API-Key header.
+    Yêu cầu cả X-API-Key header và JWT Bearer token (Double Auth).
     """
     try:
         status = waf_engine.reload_rules()
@@ -459,15 +686,17 @@ async def api_scan(
     page_attack_type: str | None = getattr(request.state, "page_attack_type", None)
 
     # ── Layer 2: FastText ─────────────────────────────────────────────
+    # Task 4: Sử dụng shared client từ app.state (Connection Pooling)
+    http_client: httpx.AsyncClient = request.app.state.http_client
+
     fasttext_result = None
     try:
-        async with httpx.AsyncClient(timeout=AI_TIMEOUT) as client:
-            ft_resp = await client.post(FASTTEXT_URL, json={"message": text})
-            if ft_resp.status_code == 200:
-                fasttext_result = ft_resp.json()
-            else:
-                # FastText returned error (e.g. 400 — text was empty after preprocessing)
-                logger.warning("Layer 2: FastText returned HTTP %s — text may be unclassifiable (all-numeric/empty after preprocess). Will escalate to DistilBERT.", ft_resp.status_code)
+        ft_resp = await http_client.post(FASTTEXT_URL, json={"message": text})
+        if ft_resp.status_code == 200:
+            fasttext_result = ft_resp.json()
+        else:
+            # FastText returned error (e.g. 400 — text was empty after preprocessing)
+            logger.warning("Layer 2: FastText returned HTTP %s — text may be unclassifiable (all-numeric/empty after preprocess). Will escalate to DistilBERT.", ft_resp.status_code)
     except httpx.ConnectError:
         logger.error("Layer 2: FastText unreachable at %s", FASTTEXT_URL)
     except httpx.TimeoutException:
@@ -567,10 +796,10 @@ async def api_scan(
 
     distilbert_result = None
     try:
-        async with httpx.AsyncClient(timeout=AI_TIMEOUT) as client:
-            db_resp = await client.post(DISTILBERT_URL, json={"text": text})
-            db_resp.raise_for_status()
-            distilbert_result = db_resp.json()
+        # Task 4: Reuse shared pooled client — không tạo mới TCP connection
+        db_resp = await http_client.post(DISTILBERT_URL, json={"text": text})
+        db_resp.raise_for_status()
+        distilbert_result = db_resp.json()
     except httpx.ConnectError:
         logger.error("Layer 3: DistilBERT unreachable at %s", DISTILBERT_URL)
     except httpx.TimeoutException:
@@ -644,7 +873,7 @@ async def api_scan(
 
 
 # ---------------------------------------------------------------------------
-# Scan Log Endpoint — nhận log từ Extension (FIX 2)
+# Scan Log Endpoint — nhận log từ Extension (Enterprise: SQLite DB)
 # ---------------------------------------------------------------------------
 class ScanLogRequest(BaseModel):
     text: str
@@ -658,46 +887,61 @@ class ScanLogRequest(BaseModel):
     attack_type: str | None = None
     pattern_engine: dict | None = None
 
-_scan_log_history: list = []
-_scan_log_lock = __import__("threading").Lock()
-MAX_LOG_ENTRIES = 500
 
 @app.post("/api/scan-log")
-async def api_scan_log(body: ScanLogRequest, _: None = Depends(verify_api_key)):
+async def api_scan_log(
+    body: ScanLogRequest,
+    _key: None = Depends(verify_api_key),  # Browser Extension vẫn dùng API key
+):
     """
     Nhận log scan từ Browser Extension.
-    Lưu vào bộ nhớ để Dashboard poll về (không cần tab mở).
+    Lưu vào SQLite DB để Dashboard poll về (bền vững qua restart).
     """
-    entry = {
-        "timestamp": __import__("datetime").datetime.utcnow().isoformat() + "Z",
-        "text": body.text[:500],
-        "is_malicious": body.is_malicious,
-        "layer": body.layer,
-        "label": body.label,
-        "score": body.score,
-        "fasttext": body.fasttext,
-        "distilbert": body.distilbert,
-        "waf_blocked": body.waf_blocked,
-        "attack_type": body.attack_type,
-        "pattern_engine": body.pattern_engine,
-    }
-    with _scan_log_lock:
-        _scan_log_history.insert(0, entry)
-        if len(_scan_log_history) > MAX_LOG_ENTRIES:
-            _scan_log_history.pop()
-    logger.info("scan-log: %s → %s (%.0f%%)", body.label, body.layer,
-                (body.score or 0) * 100)
-    return {"status": "ok"}
+    db = SessionLocal()
+    try:
+        log_entry = ScanLog(
+            text=body.text[:500],
+            is_malicious=body.is_malicious,
+            layer=body.layer,
+            label=body.label,
+            score=body.score,
+            fasttext=body.fasttext,
+            distilbert=body.distilbert,
+            waf_blocked=body.waf_blocked,
+            attack_type=body.attack_type,
+            pattern_engine=body.pattern_engine,
+        )
+        db.add(log_entry)
+        db.commit()
+        logger.info("scan-log: %s → %s (%.0f%%)", body.label, body.layer,
+                    (body.score or 0) * 100)
+        return {"status": "ok", "id": log_entry.id}
+    except Exception as exc:
+        db.rollback()
+        logger.error("scan-log DB error: %s", exc)
+        return {"status": "error", "detail": str(exc)}
+    finally:
+        db.close()
 
 
 @app.get("/api/scan-log")
 async def api_get_scan_log(
     limit: int = 50,
-    _: None = Depends(verify_api_key)
+    _jwt: str = Depends(verify_jwt_token),   # Dashboard phải có JWT mới xem được log
 ):
-    """Poll scan log từ Dashboard để lấy kết quả mới nhất."""
-    with _scan_log_lock:
-        return {"logs": _scan_log_history[:limit], "total": len(_scan_log_history)}
+    """Poll scan log từ Dashboard để lấy kết quả mới nhất (từ SQLite DB)."""
+    db = SessionLocal()
+    try:
+        total = db.query(ScanLog).count()
+        logs = (
+            db.query(ScanLog)
+            .order_by(ScanLog.timestamp.desc())
+            .limit(limit)
+            .all()
+        )
+        return {"logs": [log.to_dict() for log in logs], "total": total}
+    finally:
+        db.close()
 
 
 # ---------------------------------------------------------------------------
@@ -710,7 +954,7 @@ PENDING_REPORTS_PATH = os.path.join(os.path.dirname(__file__), "pending_reports.
 @app.post("/api/retrain/fasttext")
 async def api_retrain_fasttext(
     background_tasks: BackgroundTasks,
-    _: None = Depends(verify_api_key),
+    _jwt: str = Depends(verify_jwt_token),   # chỉ Admin đã đăng nhập mới retrain được
 ):
     """
     Đọc pending_reports.json → format sang FastText → append vào train file
@@ -842,27 +1086,29 @@ async def cache_stats(_: None = Depends(verify_api_key)):
 # Health Check
 # ---------------------------------------------------------------------------
 @app.get("/health")
-async def health_check():
+async def health_check(request: Request):
+    """Health check sử dụng shared client pool — zero TCP overhead."""
     services: dict = {"waf": "ok", "fasttext": "unknown", "distilbert": "unknown"}
+    http_client: httpx.AsyncClient = request.app.state.http_client
 
-    async with httpx.AsyncClient(timeout=3.0) as client:
-        try:
-            r = await client.get(FASTTEXT_HEALTH)
-            services["fasttext"] = "ok" if r.status_code == 200 else f"error:{r.status_code}"
-        except Exception:
-            services["fasttext"] = "unreachable"
+    # Task 4: Reuse shared pooled client cho health check
+    try:
+        r = await http_client.get(FASTTEXT_HEALTH)
+        services["fasttext"] = "ok" if r.status_code == 200 else f"error:{r.status_code}"
+    except Exception:
+        services["fasttext"] = "unreachable"
 
-        try:
-            r = await client.get(DISTILBERT_HEALTH)
-            services["distilbert"] = "ok" if r.status_code == 200 else f"error:{r.status_code}"
-        except Exception:
-            services["distilbert"] = "unreachable"
+    try:
+        r = await http_client.get(DISTILBERT_HEALTH)
+        services["distilbert"] = "ok" if r.status_code == 200 else f"error:{r.status_code}"
+    except Exception:
+        services["distilbert"] = "unreachable"
 
     overall = "ok" if all(v == "ok" for v in services.values()) else "degraded"
 
     return {
         "status": overall,
-        "version": "4.0.0",
+        "version": "4.1.0",
         "layers": {
             "layer_1_waf": services["waf"],
             "layer_2_fasttext": services["fasttext"],
@@ -876,6 +1122,11 @@ async def health_check():
             "fasttext": FASTTEXT_URL,
             "distilbert": DISTILBERT_URL,
         },
+        "connection_pool": {
+            "max_connections": 20,
+            "max_keepalive": 10,
+            "keepalive_expiry_s": 30,
+        },
     }
 
 
@@ -884,4 +1135,12 @@ async def health_check():
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    # Chạy uvicorn trực tiếp (hỗ trợ HTTPS với ssl certs)
+    uvicorn.run(
+        "main:app", 
+        host="0.0.0.0", 
+        port=8080, 
+        reload=True,
+        ssl_keyfile="localhost+1-key.pem",
+        ssl_certfile="localhost+1.pem"
+    )

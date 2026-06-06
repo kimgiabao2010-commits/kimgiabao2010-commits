@@ -1,0 +1,15 @@
+﻿3fe521e|2026-05-24|Update background.js and temp_owasp_crs
+1fbe771|2026-05-22|feat: add POST /api/retrain/fasttext endpoint and Retrain FastText button in VerificationQueue UI
+43c3bd2|2026-05-22|Enhance Dashboard Analytics (Risk Score), FastText 1:1 Class Balancing, and Restore Instant AI Bypass Pipeline
+f8ed980|2026-05-19|docs: add comprehensive development gitlog and architectural overview
+712ad1c|2026-05-19|feat: Code Freeze v4.0 ΓÇö Cache+RateLimit+ZeroTrust+WAF-HotReload+XAI+Docker
+be4b222|2026-05-19|style: ultra-professional SIEM dark mode banners without emojis
+e72ee03|2026-05-19|style: redesign extension banners to match dashboard glassmorphism UI
+3404ec3|2026-05-19|feat: make WAF scan URL as well as highlighted text
+d7efd68|2026-05-18|fix: add tabs permission to manifest - critical fix for dashboard telemetry
+b088b84|2026-05-18|chore: final comprehensive review and polish, add url scan telemetry
+c0be19c|2026-05-18|feat: implement trusted domain/citation bypass & fix dashboard sync
+552b34e|2026-05-18|feat: upgrade SWG to 4-layer orchestrator with HITL retrain pipeline
+a82da23|2026-05-18|chore: update gitignore to ignore model weights and csvs
+845a218|2026-05-15|feat: implement 3-layer security pipeline with human-in-the-loop verification
+4b64605|2026-04-28|refactor: replace Keras MLP with XGBoost classifier using GridSearchCV and add WAF alert logs

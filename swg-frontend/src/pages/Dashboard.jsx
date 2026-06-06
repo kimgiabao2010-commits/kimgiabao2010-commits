@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 const SWG_API_KEY = 'swg-vnu-is-2026';
-const API_BASE    = 'http://localhost:8000';
+const API_BASE    = 'https://localhost:8080';
 const REPORT_BASE = 'http://localhost:5003';
 
 /* ── Tooltip ──────────────────────────────────────────────── */

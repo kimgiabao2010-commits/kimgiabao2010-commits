@@ -233,12 +233,18 @@ if (typeof window !== 'undefined') {
     }
   });
 
-  // FIX 2: Auto-poll backend scan logs mỗi 5 giây
+  // Auto-poll backend scan logs mỗi 5 giây — CHỈ khi đã đăng nhập
+  // (tránh apiFetch() nhận 401 → gọi logout() liên tục trên trang Login/Register)
+  const _isLoggedIn = () => !!localStorage.getItem('swg_admin_token');
+
   setInterval(() => {
-    useScanStore.getState().pollBackendLogs();
+    if (_isLoggedIn()) useScanStore.getState().pollBackendLogs();
   }, 5000);
-  // Poll ngay lập tức khi load page
-  setTimeout(() => useScanStore.getState().pollBackendLogs(), 1000);
+
+  // Poll ngay lập tức khi load page — nhưng chỉ khi đã có token
+  setTimeout(() => {
+    if (_isLoggedIn()) useScanStore.getState().pollBackendLogs();
+  }, 1000);
 }
 
 export default useScanStore;
