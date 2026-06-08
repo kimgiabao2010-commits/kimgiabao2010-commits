@@ -1,128 +1,247 @@
-# 📁 Cấu Trúc Thư Mục Dự Án — SWG Shield v4.1
-> **Secure Web Gateway — Hệ thống Phát hiện Lừa đảo Đa tầng AI**
-> VNU Information Security · 2026
-
----
-
-## 🗂️ Directory Tree
 
 ```
-SWG-SHIELD/                               ← Thư mục gốc dự án
-│
-├── 📄 main.py                            ─ Central Gateway & Orchestrator (FastAPI, Port 8080)
-├── 📄 database.py                        ─ ORM Schema: ScanLog, PendingReport, Admin (SQLite)
-├── 📄 retrain_pipeline.py               ─ HITL Auto-Retrain Pipeline (FastText)
-├── 📄 api_server_fasttext.py            ─ Layer 2 AI Server: FastText (Port 5001)
-├── 📄 api_server_distilbert.py          ─ Layer 3 AI Server: DistilBERT (Port 5002)
-├── 📄 api_server_report.py             ─ Verification Queue API (Port 5003)
-├── 📄 main_fasttext.py                  ─ Huấn luyện FastText từ đầu (CLI Script)
-├── 📄 evaluate.py                       ─ Đánh giá độ chính xác mô hình
-├── 📄 data_collector.py                 ─ Thu thập dữ liệu huấn luyện tự động
-├── 📄 data_stats.py                     ─ Thống kê phân phối dataset
-├── 📄 requirements.txt                  ─ Python dependencies (pip)
-├── 📄 swg_shield.db                     ─ Cơ sở dữ liệu SQLite (Runtime)
-├── 📄 waf_rules.json                    ─ Bộ luật WAF được nạp động (Hot-reload)
-├── 📄 fasttext_train.txt               ─ Dữ liệu huấn luyện định dạng FastText
-├── 📄 re_train_dataset.csv             ─ Dataset do Admin xác nhận → dùng cho Retrain
-├── 📄 localhost+1.pem                   ─ SSL Certificate (mkcert Local CA)
-├── 📄 localhost+1-key.pem              ─ SSL Private Key  (mkcert Local CA)
-├── 📄 README.md                         ─ Tài liệu tổng quan dự án
-├── 📄 GITLOG.md                         ─ Nhật ký lịch sử phát triển (Git Changelog)
-├── 📄 PROJECT_STRUCTURE.md             ─ File này — Cấu trúc thư mục đồ án
-│
-├── 📁 waf/                              ─ Module Web Application Firewall (Layer 1)
-│   ├── waf_engine.py                    ─ Lõi xử lý & phân loại request độc hại
-│   ├── waf_middleware.py               ─ Middleware tích hợp trực tiếp vào FastAPI
-│   ├── waf_rules_set.py                ─ Tập luật tĩnh (XSS, SQLi, RCE, LFI, CMDi...)
-│   ├── scam_pattern_engine.py          ─ Nhận diện mẫu lừa đảo nâng cao (Heuristic)
-│   ├── generate_waf_rules.py           ─ Sinh luật WAF tự động từ OWASP CRS dataset
-│   ├── waf_logger.py                   ─ Ghi nhật ký cảnh báo WAF chi tiết
-│   └── __init__.py                     ─ Package init
-│
-├── 📁 scam_detector_distilbert/         ─ Thư mục chứa Model AI đã huấn luyện
-│   ├── model.safetensors                ─ Trọng số DistilBERT fine-tuned  (~517 MB)
-│   ├── scam_detector_model_fasttext.bin ─ Binary model FastText             (~764 MB)
-│   ├── config.json                      ─ Cấu hình kiến trúc DistilBERT
-│   ├── tokenizer.json                   ─ Từ điển Tokenizer
-│   ├── tokenizer_config.json            ─ Cấu hình Tokenizer
-│   └── training_args.bin                ─ Siêu tham số (Hyperparameters) lúc huấn luyện
-│
-├── 📁 csv/                              ─ Bộ dữ liệu huấn luyện gốc
-│   ├── vi_dataset.csv                   ─ Dataset chính tiếng Việt (nhãn: scam / legit)
-│   ├── train.csv                        ─ Tập huấn luyện (train split)
-│   └── test.csv                         ─ Tập kiểm định  (test  split)
-│
-├── 📁 data/                             ─ Raw data phân loại ngôn ngữ
-│   ├── positives.txt                    ─ Mẫu văn bản Scam thu thập thực tế
-│   └── negatives.txt                    ─ Mẫu văn bản hợp lệ (Legit)
-│
-├── 📁 logs/                             ─ Nhật ký WAF & hệ thống (Runtime)
-│
-├── 📁 .vscode/                          ─ Cấu hình VS Code
-│   ├── tasks.json                       ─ Ctrl+Shift+B → Khởi động toàn bộ hệ thống
-│   └── launch.json                      ─ Debug configuration
-│
-└── 📁 swg-frontend/                     ─ Admin Dashboard + Browser Extension
-    ├── 📄 vite.config.js               ─ Cấu hình Vite + HTTPS (vite-plugin-mkcert)
-    ├── 📄 package.json                  ─ Node.js dependencies
-    ├── 📄 index.html                    ─ HTML Entry Point
-    │
-    ├── 📁 public/                       ─ Browser Extension (Chrome Manifest V3)
-    │   ├── manifest.json               ─ Khai báo metadata & quyền truy cập Extension
-    │   ├── background.js               ─ Service Worker: Phát hiện URL, gọi API /scan
-    │   └── content.js                  ─ Content Script: Trích lục & phân tích text HTML
-    │
-    └── 📁 src/                          ─ Mã nguồn React — Admin Dashboard
-        ├── App.jsx                      ─ Router chính (Protected Routes + Auth Guard)
-        ├── main.jsx                     ─ React Entry Point
-        │
-        ├── 📁 pages/                    ─ Các trang giao diện
-        │   ├── Dashboard.jsx            ─ SIEM Dashboard (Live Feed, Biểu đồ, Thống kê)
-        │   ├── VerificationQueue.jsx   ─ Hàng chờ xét duyệt (Human-In-The-Loop)
-        │   ├── HistoryLogs.jsx          ─ Lịch sử toàn bộ lượt quét (Filterable)
-        │   ├── Login.jsx               ─ Đăng nhập Admin (xác thực JWT)
-        │   └── Register.jsx            ─ Đăng ký tài khoản Admin (yêu cầu X-API-Key)
-        │
-        ├── 📁 store/                    ─ Quản lý State toàn cục (Zustand)
-        │   ├── authStore.js            ─ Trạng thái xác thực & lưu trữ JWT Token
-        │   └── scanStore.js            ─ Dữ liệu Scan Log, Polling & thống kê
-        │
-        ├── 📁 services/                 ─ Lớp giao tiếp API
-        │   └── api.js                  ─ apiFetch Interceptor (Auto-attach JWT, 401 guard)
-        │
-        └── 📁 utils/                    ─ Hằng số & hàm tiện ích dùng chung
-            ├── constants.js            ─ API Base URLs, Verdict Types, Color Palette
-            └── helpers.js              ─ Format ngày giờ, truncate text, số liệu...
+╔══════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                  ║
+║    ███████╗██╗    ██╗ ██████╗     ███████╗██╗  ██╗██╗███████╗██╗     ██████╗    ║
+║    ██╔════╝██║    ██║██╔════╝     ██╔════╝██║  ██║██║██╔════╝██║     ██╔══██╗   ║
+║    ███████╗██║ █╗ ██║██║  ███╗    ███████╗███████║██║█████╗  ██║     ██║  ██║   ║
+║    ╚════██║██║███╗██║██║   ██║    ╚════██║██╔══██║██║██╔══╝  ██║     ██║  ██║   ║
+║    ███████║╚███╔███╔╝╚██████╔╝    ███████║██║  ██║██║███████╗███████╗██████╔╝   ║
+║    ╚══════╝ ╚══╝╚══╝  ╚═════╝     ╚══════╝╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚═════╝   ║
+║                                                                                  ║
+║             🛡️  Secure Web Gateway — Phát hiện Lừa đảo Đa tầng AI  🛡️           ║
+║                                                                                  ║
+║    ┌──────────────────────────────────────────────────────────────────────────┐  ║
+║    │  Version   : v4.1.0 (Production)                                         │  ║
+║    │  Author    : VNU Information Security Laboratory                          │  ║
+║    │  Stack     : Python 3.11 · FastAPI · React 18 · SQLite · Chrome MV3     │  ║
+║    │  Document  : Mục 4.1 — Kiến trúc hệ thống                               │  ║
+║    └──────────────────────────────────────────────────────────────────────────┘  ║
+╚══════════════════════════════════════════════════════════════════════════════════╝
 ```
 
 ---
 
-## 📊 Tổng Quan Kỹ Thuật
-
-| Thành Phần         | Công Nghệ Sử Dụng                        | Cổng (Port)     |
-|--------------------|------------------------------------------|-----------------|
-| Central Gateway    | FastAPI · Uvicorn · SQLite · JWT         | `8080` (HTTPS)  |
-| WAF Engine         | Python Regex · OWASP CRS Rules           | *(tích hợp)*    |
-| AI Layer 2         | FastText (meta/fasttext)                 | `5001` (HTTP)   |
-| AI Layer 3         | DistilBERT (HuggingFace Transformers)    | `5002` (HTTP)   |
-| Verification API   | Flask · CSV · JSON                       | `5003` (HTTP)   |
-| Admin Dashboard    | React · Vite · TailwindCSS · Zustand     | `5173` (HTTPS)  |
-| Browser Extension  | Chrome Manifest V3 · Service Worker      | *(Extension)*   |
+# 4.1 Cấu Trúc Thư Mục Dự Án
 
 ---
 
-## 🔑 Các File Cốt Lõi Quan Trọng Nhất
-
-| File | Vai Trò |
-|------|---------|
-| `main.py` | Điểm vào chính của toàn bộ hệ thống Backend |
-| `database.py` | Định nghĩa schema & toàn bộ logic CRUD với SQLite |
-| `retrain_pipeline.py` | Pipeline tự động tái huấn luyện AI khi Admin phê duyệt mẫu |
-| `waf/waf_engine.py` | Bộ lọc Layer 1 — chặn tấn công ngay từ cổng vào |
-| `waf/scam_pattern_engine.py` | Heuristic phát hiện ngôn ngữ lừa đảo đặc thù tiếng Việt |
-| `swg-frontend/public/background.js` | Service Worker của Extension — nhiệm vụ chủ chốt phía Client |
-| `scam_detector_distilbert/model.safetensors` | Bộ não DistilBERT đã được fine-tune cho bài toán phát hiện scam |
+```
+swg-shield/
+│
+│  ╔═══════════════════════════════════════╗
+│  ║        🏛️  BACKEND CORE              ║
+│  ╚═══════════════════════════════════════╝
+│
+├── main.py                    ◄─ 🎯 ENTRY POINT — Central Gateway & Orchestrator
+│      └── FastAPI app: Rate Limiter · JWT Guard · TTLCache · CORS · Lifespan
+│
+├── database.py                ◄─ 🗄️  ORM Models & CRUD (SQLAlchemy + SQLite)
+│      └── Tables: ScanLog · PendingReport · Admin
+│
+├── swg_shield.db              ◄─ 💾 SQLite Runtime Database (auto-generated)
+├── requirements.txt           ◄─ 📦 Python Dependencies (pip)
+│
+│  ╔═══════════════════════════════════════╗
+│  ║     🤖  MICROSERVICES — AI PIPELINE  ║
+│  ╚═══════════════════════════════════════╝
+│
+├── api_server_fasttext.py     ◄─ ⚡ [Layer 2]  FastText API  — Port 5001
+│      └── Phân loại văn bản tốc độ cao (Machine Learning)
+│
+├── api_server_distilbert.py   ◄─ 🧠 [Layer 3]  DistilBERT API — Port 5002
+│      └── Phân tích ngữ nghĩa sâu (Deep Learning · Transformer)
+│
+├── api_server_report.py       ◄─ 📋 [Service]  Verification Queue — Port 5003
+│      └── Quản lý báo cáo pending từ Admin Dashboard
+│
+├── retrain_pipeline.py        ◄─ 🔄 [MLOps]   HITL Auto-Retrain (Zero-Downtime)
+│      └── Admin Approve → CSV → Format → Train FastText → Hot-Reload
+│
+├── main_fasttext.py           ◄─ 🏋️  Script huấn luyện FastText từ đầu (CLI)
+├── evaluate.py                ◄─ 📊 Đánh giá Accuracy / Precision / Recall
+│
+│  ╔═══════════════════════════════════════╗
+│  ║     🔐  SECURITY & AUTH LAYER        ║
+│  ╚═══════════════════════════════════════╝
+│
+│  (Tích hợp trong main.py + database.py)
+│  │
+│  ├── 🛡️  X-API-Key Header Guard   — Zero-Trust: bảo vệ toàn bộ endpoints
+│  ├── 🔑  JWT (PyJWT · HS256)      — Stateless Auth cho Admin Session
+│  ├── 🔒  bcrypt (passlib[bcrypt]) — Mã hoá mật khẩu Admin (cost=12)
+│  ├── 🚦  SlowAPI Rate Limiter     — Chống DDoS: 200 req/min/IP
+│  ├── ⚡  TTLCache (cachetools)    — Cache kết quả SAFE 1h (giảm tải AI)
+│  └── 🌐  TLS/HTTPS (mkcert)      — Chứng chỉ SSL Local CA ký
+│
+├── localhost+1.pem            ◄─ 🔐 TLS Certificate (mkcert Local CA)
+├── localhost+1-key.pem        ◄─ 🔑 TLS Private Key  (mkcert Local CA)
+│
+│  ╔═══════════════════════════════════════╗
+│  ║     🧱  WAF MODULE (LAYER 1)         ║
+│  ╚═══════════════════════════════════════╝
+│
+├── waf/
+│   ├── __init__.py
+│   ├── waf_engine.py          ◄─ ⚙️  Lõi phân tích & phân loại request độc hại
+│   ├── waf_middleware.py      ◄─ 🔌 Middleware tích hợp trực tiếp vào FastAPI
+│   ├── waf_rules_set.py       ◄─ 📜 Tập luật: XSS · SQLi · RCE · LFI · CMDi
+│   ├── scam_pattern_engine.py ◄─ 🕵️  Heuristic phát hiện lừa đảo tiếng Việt
+│   ├── generate_waf_rules.py  ◄─ 🏭 Sinh luật tự động từ OWASP CRS dataset
+│   └── waf_logger.py         ◄─ 📝 Ghi nhật ký cảnh báo (CEF format)
+│
+├── waf_rules.json             ◄─ 📐 Bộ luật WAF nạp động (Hot-reload)
+│
+│  ╔═══════════════════════════════════════╗
+│  ║     🧬  AI MODEL ARTIFACTS           ║
+│  ╚═══════════════════════════════════════╝
+│
+├── scam_detector_distilbert/
+│   ├── model.safetensors           ◄─ 🧠 DistilBERT weights fine-tuned  [517 MB]
+│   ├── scam_detector_model_fasttext.bin ◄─ ⚡ FastText binary model     [764 MB]
+│   ├── config.json                 ◄─ ⚙️  Cấu hình kiến trúc DistilBERT
+│   ├── tokenizer.json              ◄─ 📖 Từ điển Tokenizer (~30K tokens)
+│   ├── tokenizer_config.json       ◄─ ⚙️  Cấu hình Tokenizer
+│   └── training_args.bin           ◄─ 📐 Hyperparameters lúc huấn luyện
+│
+│  ╔═══════════════════════════════════════╗
+│  ║     📚  TRAINING DATA                ║
+│  ╚═══════════════════════════════════════╝
+│
+├── csv/
+│   ├── vi_dataset.csv         ◄─ 🗃️  Dataset gốc tiếng Việt (scam / legit)
+│   ├── train.csv              ◄─ 📈 Tập huấn luyện (Train split  ~80%)
+│   └── test.csv               ◄─ 📉 Tập kiểm định  (Test  split  ~20%)
+│
+├── fasttext_train.txt         ◄─ 📄 Dataset FastText format (__label__scam ...)
+├── re_train_dataset.csv       ◄─ ✅ Dữ liệu Admin đã phê duyệt → đầu vào Retrain
+│
+│  ╔═══════════════════════════════════════╗
+│  ║     ⚙️   DEVOPS & CONFIG             ║
+│  ╚═══════════════════════════════════════╝
+│
+├── .vscode/
+│   ├── tasks.json             ◄─ ⌨️  Ctrl+Shift+B → Khởi động toàn bộ Stack
+│   └── launch.json            ◄─ 🐛 Debug profile cho VS Code
+│
+├── .gitignore                 ◄─ 🚫 Loại trừ: __pycache__ · *.pem · *.db · venv
+├── README.md                  ◄─ 📖 Tài liệu tổng quan & hướng dẫn khởi chạy
+├── GITLOG.md                  ◄─ 📅 Nhật ký phát triển theo Sprint
+│
+│  ╔═══════════════════════════════════════════════════════════╗
+│  ║   ⚛️   FRONTEND — REACT DASHBOARD + BROWSER EXTENSION   ║
+│  ╚═══════════════════════════════════════════════════════════╝
+│
+└── swg-frontend/
+    │
+    ├── vite.config.js         ◄─ ⚡ Vite build + HTTPS (vite-plugin-mkcert)
+    ├── package.json           ◄─ 📦 Node.js dependencies & npm scripts
+    ├── tailwind.config.js     ◄─ 🎨 TailwindCSS design tokens
+    ├── index.html             ◄─ 🌐 HTML Entry Point
+    │
+    ├── public/                    ╔══════════════════════════════╗
+    │   │                          ║  🔌 BROWSER EXTENSION (MV3) ║
+    │   │                          ╚══════════════════════════════╝
+    │   ├── manifest.json      ◄─ 📋 Khai báo metadata, host_permissions Chrome
+    │   ├── background.js      ◄─ 👁️  Service Worker: Bắt URL, gọi /api/scan ngầm
+    │   └── content.js         ◄─ 🖊️  Content Script: Trích lục text & hiện Banner
+    │
+    └── src/                       ╔══════════════════════════════╗
+        │                          ║  🖥️  REACT ADMIN DASHBOARD  ║
+        │                          ╚══════════════════════════════╝
+        ├── main.jsx            ◄─ 🚀 React DOM Entry Point
+        ├── App.jsx             ◄─ 🗺️  Router + Auth Guard (Protected Routes)
+        │
+        ├── pages/
+        │   ├── Dashboard.jsx        ◄─ 📊 SIEM: Live Feed · Charts · Thống kê
+        │   ├── VerificationQueue.jsx◄─ ✅ Human-In-The-Loop Verification
+        │   ├── HistoryLogs.jsx      ◄─ 📜 Lịch sử quét (Filter · Pagination)
+        │   ├── Login.jsx            ◄─ 🔐 Đăng nhập Admin (JWT + bcrypt)
+        │   └── Register.jsx         ◄─ 📝 Đăng ký (yêu cầu X-API-Key)
+        │
+        ├── store/              ◄─ 🗂️  State Management (Zustand)
+        │   ├── authStore.js         ◄─ 🔑 JWT Token · Auth state
+        │   └── scanStore.js         ◄─ 📡 Scan Logs · Polling · Cache
+        │
+        ├── services/
+        │   └── api.js          ◄─ 🔌 apiFetch: Auto-attach JWT · 401 interceptor
+        │
+        └── utils/
+            ├── constants.js    ◄─ 🎨 API URLs · Verdict Types · Color Palette
+            └── helpers.js      ◄─ 🔧 Format date · Truncate · Number utils
+```
 
 ---
 
-*Được tạo tự động · SWG Shield v4.1 · VNU Information Security Laboratory 2026*
+## 📊 Bảng Tổng Hợp Stack Kỹ Thuật
+
+```
+┌─────────────────────┬───────────────────────────────────────┬────────┬──────────┐
+│  Module             │  Công Nghệ                            │  Port  │ Protocol │
+├─────────────────────┼───────────────────────────────────────┼────────┼──────────┤
+│ 🎯 Central Gateway  │ FastAPI · Uvicorn · SQLite · PyJWT    │  8080  │  HTTPS   │
+│ 🧱 WAF Engine       │ Python Regex · OWASP CRS Rules        │  ----  │    —     │
+│ ⚡ AI Layer 2       │ meta/fasttext · Flask                 │  5001  │  HTTP    │
+│ 🧠 AI Layer 3       │ HuggingFace DistilBERT · FastAPI      │  5002  │  HTTP    │
+│ 📋 Verification     │ Flask · CSV · JSON · SQLite           │  5003  │  HTTP    │
+│ 🖥️  Dashboard       │ React 18 · Vite · TailwindCSS·Zustand │  5173  │  HTTPS   │
+│ 🔌 Extension        │ Chrome Manifest V3 · Service Worker   │   —    │    —     │
+└─────────────────────┴───────────────────────────────────────┴────────┴──────────┘
+```
+
+## 🔄 Luồng Xử Lý Chính (Request Pipeline)
+
+```
+  [User lướt web]
+       │
+       ▼
+  Browser Extension ──► POST /api/scan ──► 🏛️  Central Gateway (8080/HTTPS)
+                                                │
+                              ┌─────────────────┼──────────────────────┐
+                              │                 │                      │
+                              ▼                 ▼                      ▼
+                        🔑 JWT Auth       📦 TTL Cache           🚦 Rate Limit
+                              │                 │                      │
+                              └────────┬────────┘                      │
+                                       │                               │
+                                       ▼                               │
+                              ┌─────────────────┐                      │
+                              │  🧱 WAF Layer 1  │ ◄────── Block ───────┘
+                              │  (SQLi/XSS/RCE) │
+                              └────────┬────────┘
+                               PASS    │   BLOCK → 403 Forbidden
+                                       ▼
+                              ┌─────────────────┐
+                              │  ⚡ FastText L2  │  Confidence > 75%?
+                              │  (Port 5001)    │
+                              └────────┬────────┘
+                           CERTAIN │       │ AMBIGUOUS (< 75%)
+                                   │       ▼
+                                   │  ┌─────────────────┐
+                                   │  │  🧠 DistilBERT  │  Deep Semantic
+                                   │  │  L3 (Port 5002) │  Analysis
+                                   │  └────────┬────────┘
+                                   └───────────┘
+                                               │
+                                               ▼
+                                   💾 ScanLog → SQLite DB
+                                               │
+                                               ▼
+                                   📊 Admin Dashboard (5173/HTTPS)
+                                               │
+                                       ┌───────┴───────┐
+                                       ▼               ▼
+                                  ✅ Verify        ❌ Discard
+                                       │
+                                       ▼
+                                  🔄 Retrain FastText (HITL Pipeline)
+```
+
+---
+
+```
+╔══════════════════════════════════════════════════════════════════════════════════╗
+║   SWG Shield v4.1  ·  VNU Information Security Laboratory  ·  © 2026           ║
+║   "Bảo vệ người dùng Việt Nam khỏi các mối đe dọa lừa đảo trực tuyến"         ║
+╚══════════════════════════════════════════════════════════════════════════════════╝
+```
