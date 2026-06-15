@@ -47,27 +47,27 @@ Dưới đây là chi tiết các mốc commit chính trong kho lưu trữ Git c
 
 | Commit Hash | Ngày thực hiện | Tên Commit / Tính năng | Mô Tả Kỹ Thuật Chi Tiết |
 | :--- | :--- | :--- | :--- |
-| **`(latest)`** | 2026-05-26 | `audit: comprehensive project review — fix log, clean junk, update GITLOG` | Rà soát toàn bộ 10+ file source code. Fix log sai ngữ nghĩa trong `main_fasttext.py`. Xóa file rác `old_dash.jsx`. Cập nhật GITLOG đầy đủ 7 vấn đề và bảng commit mới nhất. |
+| **`(latest)`** | 2026-06-15 | `chore: add confusion matrix scripts, update training data, sync DB` | Bổ sung `confusion_matrix.py` và `confusion_matrix_figure.png` để trực quan hóa hiệu năng mô hình. Cập nhật `fasttext_train.txt` với dữ liệu huấn luyện mới nhất. Đồng bộ `swg_shield.db`. |
+| **`9955b58`** | 2026-06-08 | `docs: redesign PROJECT_STRUCTURE.md with ASCII art, flowchart and enterprise layout` | Tái thiết kế hoàn toàn `PROJECT_STRUCTURE.md` với sơ đồ ASCII art, flowchart kiến trúc hệ thống và bố cục trình bày chuẩn Enterprise cho báo cáo tốt nghiệp. |
+| **`ebd6cc9`** | 2026-06-08 | `docs: add PROJECT_STRUCTURE.md — full annotated directory tree for thesis report` | Khởi tạo tệp `PROJECT_STRUCTURE.md` mô tả toàn bộ cây thư mục dự án với chú thích chi tiết phục vụ báo cáo đồ án tốt nghiệp. |
+| **`bcd29f1`** | 2026-06-06 | `feat(security): upgrade full stack to HTTPS via local CA (mkcert) and secure admin login` | Nâng cấp toàn bộ hệ thống lên HTTPS thông qua chứng chỉ Local CA tự ký bằng `mkcert`. Bảo mật cổng đăng nhập Admin Dashboard. Tích hợp `localhost+1.pem` và `localhost+1-key.pem`. |
+| **`20a5626`** | 2026-05-28 | `v4.0.1: Full-stack audit cleanup — Fix typos, add Report API health check, remove 19 dead files` | Rà soát toàn diện toàn bộ stack. Sửa lỗi đánh máy, thêm health check cho Report API, loại bỏ 19 file dead code không còn sử dụng. |
+| **`d07888c`** | 2026-05-26 | `fix: revert pseudo-label self-training loop to prevent confirmation bias` | Gỡ bỏ vòng lặp tự huấn luyện pseudo-label vì gây ra Confirmation Bias — mô hình tự củng cố lỗi sai. Khôi phục pipeline HITL thuần túy. |
+| **`f36449e`** | 2026-05-26 | `feat: auto-ingest recent telemetry scans into retrain pipeline for implicit self-training` | Tự động đưa các bản ghi quét từ `_scan_log_history` vào pipeline huấn luyện theo cơ chế Implicit Self-Training, tăng liên tục kích thước tập dữ liệu. |
+| **`1c0bd95`** | 2026-05-26 | `ux: revert banner labels to 'AI Confidence' per user request` | Khôi phục nhãn "AI Confidence" trên banner cảnh báo Extension theo yêu cầu người dùng. |
+| **`9bfc0bb`** | 2026-05-26 | `chore: untrack dataset/log files already in gitignore and clean up temp test scripts` | Gỡ tracking các file dataset và log đã có trong `.gitignore`. Dọn sạch script test tạm thời. |
+| **`01913c3`** | 2026-05-26 | `audit: comprehensive project review — fix log, clean junk, update GITLOG` | Rà soát toàn bộ 10+ file source code. Fix log sai ngữ nghĩa trong `main_fasttext.py`. Xóa file rác `old_dash.jsx`. Cập nhật GITLOG đầy đủ 7 vấn đề và bảng commit mới nhất. |
 | **`bc134c5`** | 2026-05-25 | `docs: finalize deployment resources, add README, VS Code tasks, start_all.bat` | Thêm `README.md` mô tả kiến trúc 3 lớp AI, tích hợp `Ctrl+Shift+B` để khởi chạy toàn bộ hệ thống hoặc build Extension, cập nhật `start_all.bat` thêm React Dashboard. |
 | **`aa6f2a9`** | 2026-05-25 | `revert: remove Model Evaluation panel per user request` | Gỡ bỏ hoàn toàn khung Model Evaluation khỏi Dashboard theo yêu cầu của người dùng. Chỉ giữ lại Retraining Control Center. |
 | **`fd47702`** | 2026-05-25 | `feat: auto-append retrain data to csv/vi_dataset.csv` | Tích hợp bước merge tự động dữ liệu đã duyệt vào `csv/vi_dataset.csv` trong retrain pipeline, đảm bảo `python main_fasttext.py` luôn training trên dataset lớn nhất. Dedup theo nội dung text. |
 | **`4567ce0`** | 2026-05-25 | `feat: replace live intercept logs with FastText Retraining Control Center` | Thay thế bảng Live Intercept Logs bằng Retraining Control Center hoàn chỉnh với terminal log stream, pending report counter, và auto-polling. |
-| **`(prev)`** | 2026-05-24 | `fix: add flush=True print logs to retrain_pipeline — fix silent background task on Windows` | Chẩn đoán và vá lỗi "im lặng hoàn toàn" của Background Task huấn luyện FastText trên Windows. Thêm `force=True` vào `logging.basicConfig()` và `sys.stdout.reconfigure(line_buffering=True)`. |
+| **`cfcf5df`** | 2026-05-24 | `fix: rename MODEL_BIN_PATH to FASTTEXT_MODEL_BIN and clarify all train logs` | Đổi tên biến môi trường cho rõ nghĩa. Thêm nhãn `[FASTTEXT]` vào tất cả log huấn luyện giúp dễ phân biệt giữa các model service. |
+| **`a9d38eb`** | 2026-05-24 | `fix: flush stdout logs in retrain_pipeline & update GITLOG` | Vá lỗi "im lặng hoàn toàn" của Background Task huấn luyện FastText trên Windows. Thêm `force=True` vào `logging.basicConfig()`. |
 | **`3fe521e`** | 2026-05-24 | `Update background.js and temp_owasp_crs` | Cập nhật logic `background.js` của Browser Extension và đồng bộ tập luật OWASP CRS tạm thời. |
 | **`1fbe771`** | 2026-05-22 | `feat: add POST /api/retrain/fasttext endpoint and Retrain FastText button` | Phát triển endpoint `POST /api/retrain/fasttext` kích hoạt huấn luyện lại FastText 30 epochs qua `BackgroundTasks`. Tích hợp nút "Retrain FastText" vào Admin Verification Queue. |
 | **`43c3bd2`** | 2026-05-22 | `Enhance Dashboard Analytics, FastText 1:1 Class Balancing, Restore AI Bypass` | Ba nâng cấp lớn: (1) Risk Score visualization; (2) Cân bằng dataset FastText 1:1; (3) Khôi phục Instant AI Bypass pipeline. |
 | **`f8ed980`** | 2026-05-19 | `docs: add comprehensive development gitlog` | Khởi tạo tệp `GITLOG.md` ghi nhận toàn bộ lịch sử phát triển và giải pháp triển khai. |
 | **`712ad1c`** | 2026-05-19 | `feat: Code Freeze v4.0 — Cache+RateLimit+ZeroTrust+WAF-HotReload+XAI+Docker` | **Bản phát hành Code Freeze v4.0 cuối cùng**. Tích hợp TTLCache, SlowAPI, X-API-Key, WAF hot-reload, LIME XAI, Docker. |
-| **`be4b222`** | 2026-05-19 | `style: ultra-professional SIEM dark mode banners` | Dọn dẹp thiết kế cảnh báo Extension. Chuyển sang SIEM Dark Mode chuyên nghiệp. |
-| **`e72ee03`** | 2026-05-19 | `style: redesign extension banners to match dashboard glassmorphism UI` | Đồng bộ thẩm mỹ Warning Banner với thiết kế kính mờ cao cấp của Dashboard. |
-| **`3404ec3`** | 2026-05-19 | `feat: make WAF scan URL as well as highlighted text` | Nâng cấp WAF Layer 1 quét cả URL trên thanh địa chỉ kết hợp quét văn bản bôi đen. |
-| **`d7efd68`** | 2026-05-18 | `fix: add tabs permission to manifest` | Bổ sung quyền `tabs` vào `manifest.json` để đồng bộ dữ liệu thời gian thực sang Dashboard. |
-| **`b088b84`** | 2026-05-18 | `chore: final comprehensive review and polish` | Đánh giá tổng thể mã nguồn, tối ưu hóa truyền tải và thêm telemetry giám sát quét URL. |
-| **`c0be19c`** | 2026-05-18 | `feat: implement trusted domain/citation bypass & fix dashboard sync` | Triển khai danh sách trắng tên miền tin cậy (Whitelisting). Bypass AI nếu nguồn tin cậy. |
-| **`552b34e`** | 2026-05-18 | `feat: upgrade SWG to 4-layer orchestrator with HITL retrain pipeline` | Nâng cấp lên cấu trúc 4 lớp điều phối và thiết lập đường ống HITL. |
-| **`a82da23`** | 2026-05-18 | `chore: update gitignore to ignore model weights and csvs` | Loại bỏ file trọng số mô hình (>500MB) và CSV tạm thời khỏi Git. |
-| **`845a218`** | 2026-05-15 | `feat: implement 3-layer security pipeline with HITL verification` | Phát triển nền tảng quét 3 lớp và Admin Verification Queue. |
-| **`4b64605`** | 2026-04-28 | `refactor: replace Keras MLP with XGBoost + GridSearchCV` | Thay thế mô hình cũ bằng XGBoost kết hợp GridSearchCV, bổ sung WAF alert logs. |
 | **`15b64e1`** | 2026-04-28 | `First commit: mới làm xong nền WAF modsecurity` | Khởi tạo kho lưu trữ dự án, cấu hình WAF ModSecurity Layer 1 cơ bản. |
 
 ---

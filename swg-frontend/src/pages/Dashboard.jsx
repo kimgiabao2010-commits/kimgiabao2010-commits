@@ -7,6 +7,7 @@ import {
   Tooltip,
 } from 'recharts';
 import useScanStore from '../store/scanStore';
+import useAuthStore from '../store/authStore';
 import {
   Shield, Zap, Target, Crosshair, Hexagon,
   TerminalSquare, AlertTriangle, CheckSquare,
@@ -178,9 +179,9 @@ export default function Dashboard() {
     // Verdict donut
     const verdictData = hasData
       ? [
-          { name: 'SAFE',   value: safe,       color: '#10b981', pct: Math.round(safe / total * 100) },
-          { name: 'SCAM',   value: blockedAI,  color: '#f59e0b', pct: Math.round(blockedAI / total * 100) },
-          { name: 'ATTACK', value: blockedWAF, color: '#e11d48', pct: Math.round(blockedWAF / total * 100) },
+          { name: 'SAFE / LEGIT',  value: safe,       color: '#10b981', pct: Math.round(safe / total * 100) },
+          { name: 'SCAM (AI)',     value: blockedAI,  color: '#f59e0b', pct: Math.round(blockedAI / total * 100) },
+          { name: 'SCAM (RULES)',  value: blockedWAF, color: '#e11d48', pct: Math.round(blockedWAF / total * 100) },
         ].filter(d => d.value > 0)
       : [];
 
@@ -422,6 +423,7 @@ const STATUS = {
 };
 
 function FastTextRetrainPanel() {
+  const { getAuthHeaders } = useAuthStore();
   const [status,       setStatus]       = useState(STATUS.IDLE);
   const [logLines,     setLogLines]     = useState([]);
   const [pendingCount, setPendingCount] = useState(null);   // số report pending
@@ -476,18 +478,27 @@ function FastTextRetrainPanel() {
     setErrorMsg('');
     setLastResult(null);
 
-    addLog('⏳ Đang gửi lệnh retrain tới Gateway (Port 8000)...', 'info');
+    addLog('⏳ Đang gửi lệnh retrain tới Gateway (Port 8080)...', 'info');
 
     try {
       const res = await fetch(`${API_BASE}/api/retrain/fasttext`, {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': SWG_API_KEY },
+        headers: {
+          ...getAuthHeaders(),          // Authorization: Bearer <token>
+          'X-API-Key': SWG_API_KEY,    // backup key
+        },
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.detail || `HTTP ${res.status}`);
+        // data.detail có thể là string hoặc array (FastAPI validation error)
+        const detail = Array.isArray(data.detail)
+          ? data.detail.map(e => e.msg || JSON.stringify(e)).join(', ')
+          : (typeof data.detail === 'object' && data.detail !== null)
+            ? JSON.stringify(data.detail)
+            : (data.detail || data.message || `HTTP ${res.status}`);
+        throw new Error(detail);
       }
 
       const appended = data.new_samples_appended ?? data.new_samples ?? 0;
@@ -531,8 +542,17 @@ function FastTextRetrainPanel() {
       }, 100 * 1000);
 
     } catch (err) {
-      addLog(`❌ LỖI: ${err.message}`, 'error');
-      setErrorMsg(err.message);
+      // Đảm bảo luôn ra string dù err là TypeError, Error, hay plain object
+      const msg = typeof err === 'string'
+        ? err
+        : err?.message
+          ? err.message
+          : JSON.stringify(err);
+      const friendlyMsg = msg.includes('Failed to fetch') || msg.includes('NetworkError')
+        ? `Không kết nối được tới Gateway (https://localhost:8080). Kiểm tra main.py đã chạy chưa?`
+        : msg;
+      addLog(`❌ LỖI: ${friendlyMsg}`, 'error');
+      setErrorMsg(friendlyMsg);
       setStatus(STATUS.ERROR);
     }
   };

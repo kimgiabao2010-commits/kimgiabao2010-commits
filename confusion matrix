@@ -1,0 +1,44 @@
+import pandas as pd
+import torch
+from transformers import DistilBertTokenizer, DistilBertForSequenceClassification
+from sklearn.metrics import confusion_matrix, classification_report, ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Load model
+model_path = "./scam_detector_distilbert"
+tokenizer = DistilBertTokenizer.from_pretrained(model_path)
+model = DistilBertForSequenceClassification.from_pretrained(model_path)
+model.eval()
+
+# Load data
+df = pd.read_csv('security_payloads.csv')
+# Giả định bạn dùng toàn bộ tập dữ liệu để đánh giá (hoặc lọc theo ý muốn)
+texts = df['text'].tolist()
+y_test = df['label'].tolist()
+
+# Inference
+y_pred = []
+for text in texts:
+    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True, max_length=128)
+    with torch.no_grad():
+        logits = model(**inputs).logits
+    y_pred.append(torch.argmax(logits, dim=1).item())
+
+# 1. Hiển thị thông số để viết báo cáo
+print("--- CLASSIFICATION REPORT ---")
+print(classification_report(y_test, y_pred, target_names=['Safe', 'Scam']))
+
+# 2. Vẽ và lưu Confusion Matrix
+cm = confusion_matrix(y_test, y_pred)
+plt.figure(figsize=(8, 6))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+            xticklabels=['Safe', 'Scam'], yticklabels=['Safe', 'Scam'])
+plt.xlabel('Predicted Label')
+plt.ylabel('True Label')
+plt.title('Confusion Matrix: DistilBERT Model Performance')
+
+# Lưu file với DPI cao để in ấn
+plt.savefig('confusion_matrix_figure.png', dpi=300, bbox_inches='tight')
+print("Đã lưu file: confusion_matrix_figure.png")
+plt.show()
