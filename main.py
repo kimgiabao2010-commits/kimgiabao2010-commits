@@ -192,6 +192,7 @@ DISTILBERT_HEALTH = "http://localhost:5002/health"
 
 HIGH_CONF_THRESHOLD = 0.95
 LOW_CONF_THRESHOLD  = 0.40
+SELECTION_LOW_CONF_THRESHOLD = 0.60  # Dưới 60% → hiển thị nút quét DistilBERT cho user bôi đen chữ
 AI_TIMEOUT = 15.0  # Tăng lên 15s để DistilBERT kịp chạy xong trên CPU
 PATTERN_SCAM_THRESHOLD = 40   # risk_score >= 40 → Pattern engine says SCAM
 
@@ -314,6 +315,10 @@ def has_trusted_citation(text: str) -> str | None:
 class ScanRequest(BaseModel):
     text: str
     url: str | None = None
+    # selection_scan=True: người dùng đang bôi đen chữ → chỉ chạy FastText, không tự leo thang DistilBERT
+    selection_scan: bool = False
+    # force_distilbert=True: bỏ qua FastText, chạy thẳng DistilBERT (dùng khi user bấm 'Quét DistilBERT')
+    force_distilbert: bool = False
 
     model_config = {
         "json_schema_extra": {
@@ -321,6 +326,8 @@ class ScanRequest(BaseModel):
                 {
                     "text": "Chúc mừng! Bạn đã trúng thưởng 50 triệu đồng!",
                     "url": "https://example-scam.com/win",
+                    "selection_scan": False,
+                    "force_distilbert": False,
                 }
             ]
         }
@@ -632,10 +639,17 @@ async def api_scan(
       1. Trusted Domain / Citation → SAFE bypass
       2. FastText (semantic speed layer)
       3. DistilBERT (deep analysis for ambiguous cases)
+
+    Chế độ đặc biệt:
+      - selection_scan=True : Người dùng bôi đen chữ → Chỉ chạy FastText, không tự leo thang DistilBERT.
+                              Trả về low_confidence=True nếu FastText < 60% để Extension hiện nút thủ công.
+      - force_distilbert=True: Bỏ qua FastText, chạy thẳng DistilBERT (khi user bấm nút "Quét DistilBERT").
     """
     t_start = time.monotonic()
     text = body.text
     url  = body.url
+    selection_scan   = body.selection_scan
+    force_distilbert = body.force_distilbert
 
     # ── Task 1: Cache Check ───────────────────────────────────────────
     cache_key = _cache_key(text, url)
@@ -685,10 +699,54 @@ async def api_scan(
     page_url_flagged: bool = getattr(request.state, "page_url_flagged", False)
     page_attack_type: str | None = getattr(request.state, "page_attack_type", None)
 
-    # ── Layer 2: FastText ─────────────────────────────────────────────
-    # Task 4: Sử dụng shared client từ app.state (Connection Pooling)
+    # ── Chế độ force_distilbert: Bỏ qua FastText, chạy thẳng DistilBERT ────
+    # (Triggered khi user bôi đen chữ & bấm nút "Quét bằng DistilBERT" trên banner)
     http_client: httpx.AsyncClient = request.app.state.http_client
 
+    if force_distilbert:
+        logger.info("[SELECTION] force_distilbert=True → Bỏ qua FastText, chạy thẳng DistilBERT.")
+        distilbert_result = None
+        try:
+            db_resp = await http_client.post(DISTILBERT_URL, json={"text": text})
+            db_resp.raise_for_status()
+            distilbert_result = db_resp.json()
+        except httpx.ConnectError:
+            logger.error("[SELECTION] DistilBERT unreachable at %s", DISTILBERT_URL)
+        except httpx.TimeoutException:
+            logger.error("[SELECTION] DistilBERT timeout (%.1fs)", AI_TIMEOUT)
+        except Exception as exc:
+            logger.error("[SELECTION] DistilBERT unknown error: %s", exc)
+
+        latency = round((time.monotonic() - t_start) * 1000, 2)
+        if distilbert_result is None:
+            return {
+                "status": "ERROR",
+                "layer": "DistilBERT",
+                "label": "Unknown",
+                "score": None,
+                "latency_ms": latency,
+                "detail": "DistilBERT service không phản hồi. Vui lòng thử lại.",
+                "force_distilbert": True,
+            }
+
+        db_label = distilbert_result.get("prediction", "Unknown")
+        db_conf  = float(distilbert_result.get("confidence_score", distilbert_result.get("confidence", 0.0)))
+        logger.info("[SELECTION] DistilBERT direct → label=%s confidence=%.4f", db_label, db_conf)
+        return {
+            "status": "SUCCESS",
+            "layer": "DistilBERT",
+            "label": db_label,
+            "score": db_conf,
+            "latency_ms": latency,
+            "fasttext": None,
+            "distilbert": distilbert_result,
+            "force_distilbert": True,
+            "page_url_flagged": page_url_flagged,
+            "page_attack_type": page_attack_type,
+        }
+
+    # ── Layer 2: FastText ─────────────────────────────────────────────
+    # Task 4: Sử dụng shared client từ app.state (Connection Pooling)
     fasttext_result = None
     try:
         ft_resp = await http_client.post(FASTTEXT_URL, json={"message": text})
@@ -738,6 +796,37 @@ async def api_scan(
     if pattern_rules:
         logger.info("Layer 2.5 Pattern Engine → risk_score=%d is_scam=%s rules=%s",
                     pattern_score, pattern_is_scam, pattern_rules)
+
+    # ── Chế độ selection_scan: Chỉ trả kết quả FastText, không tự leo thang DistilBERT ──
+    # Nếu độ tự tin FastText < 60%, đánh dấu low_confidence=True để Extension hiện nút thủ công
+    if selection_scan:
+        latency = round((time.monotonic() - t_start) * 1000, 2)
+        is_low_conf = ft_confidence < SELECTION_LOW_CONF_THRESHOLD
+        logger.info(
+            "[SELECTION] FastText only mode → label=%s conf=%.4f low_confidence=%s",
+            ft_label, ft_confidence, is_low_conf
+        )
+        result = {
+            "status": "SUCCESS",
+            "layer": "FastText",
+            "label": ft_label,
+            "score": ft_confidence,
+            "latency_ms": latency,
+            "fasttext": fasttext_result,
+            "distilbert": None,
+            "selection_scan": True,
+            "low_confidence": is_low_conf,  # Extension dùng cờ này để hiện nút DistilBERT/Dashboard
+            "page_url_flagged": page_url_flagged,
+            "page_attack_type": page_attack_type,
+            "pattern_engine": {
+                "is_scam": pattern_is_scam,
+                "risk_score": pattern_score,
+                "confidence": pattern_conf,
+                "matched_rules": pattern_rules,
+            },
+            "override_reason": None,
+        }
+        return result
 
     # If page URL was flagged by WAF as dangerous, treat the text as suspicious
     # regardless of FastText confidence (context-aware boosting)

@@ -35,7 +35,7 @@ logging.basicConfig(
 logger = logging.getLogger("distilbert-api")
 
 # ── Cấu hình ─────────────────────────────────────────────────────
-MODEL_DIR  = os.path.join(os.path.dirname(__file__), "scam_detector_distilbert")
+MODEL_DIR  = os.path.join(os.path.dirname(__file__), "distilbert model")
 DEVICE     = "cuda" if torch.cuda.is_available() else "cpu"
 MAX_LENGTH = 512
 

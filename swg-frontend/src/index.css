@@ -12,6 +12,7 @@ body {
   color: #111827;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  zoom: 1.12; /* Upscale toàn bộ giao diện một cách nhẹ nhàng 12% */
 }
 
 /* ── Scrollbar ──────────────────────────────────────────────── */

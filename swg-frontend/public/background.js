@@ -18,25 +18,36 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         let targetText = info.selectionText || info.linkUrl || tab.url;
         if (!targetText) return;
 
-        console.log("🕵️ Đang quét mục tiêu:", targetText);
+        // Kiểm tra đây có phải là bôi đen chữ không (selection text)
+        const isSelectionScan = !!info.selectionText;
 
-        // FIX 1: Hiển thị loading spinner ngay lập tức
+        console.log("🕵️ Đang quét mục tiêu:", targetText, isSelectionScan ? "[SELECTION SCAN]" : "[URL SCAN]");
+
+        // Hiển thị loading spinner ngay lập tức
         chrome.tabs.sendMessage(tab.id, {
             action: "show_loading",
             text: targetText
         });
 
         try {
-            // Send request to Central Gateway (Port 8000)
+            // Với bôi đen chữ: gửi selection_scan=true để backend CHỈ chạy FastText trước
+            // Với URL/Link: gửi bình thường, backend tự chạy full pipeline
+            const requestBody = {
+                text: targetText,
+                url: tab.url,
+                selection_scan: isSelectionScan,
+                force_distilbert: false,
+            };
+
             const res = await fetch("https://localhost:8080/api/scan", {
                 method: "POST",
                 headers: SWG_GATEWAY_HEADERS,
-                body: JSON.stringify({ text: targetText, url: tab.url })
+                body: JSON.stringify(requestBody)
             });
             const result = await res.json();
 
-            let aiData = { 
-                fasttext: result.fasttext || null, 
+            let aiData = {
+                fasttext: result.fasttext || null,
                 distilbert: result.distilbert || null,
                 layer: result.layer || null,
                 detail: result.detail || "",
@@ -50,9 +61,12 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
                 degraded: result.degraded || false,
                 pattern_engine: result.pattern_engine || null,
                 override_reason: result.override_reason || null,
+                // Cờ mới: chế độ bôi đen chữ + độ tự tin thấp
+                selection_scan: result.selection_scan || false,
+                low_confidence: result.low_confidence || false,
             };
-            
-            // Extract malicious status — use result.label as primary signal
+
+            // Trích xuất trạng thái nguy hiểm
             let isMalicious = false;
             if (result.status === "BLOCKED_BY_WAF") {
                 isMalicious = true;
@@ -60,19 +74,20 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
                 isMalicious = true;
             }
 
-            // Gửi dữ liệu xuống content.js để hiển thị (thay loading bằng kết quả thật)
+            // Gửi kết quả xuống content.js để hiển thị banner
             chrome.tabs.sendMessage(tab.id, {
                 action: "show_result",
                 text: targetText,
                 aiData: aiData,
                 isMalicious: isMalicious,
-                layer: result.layer || null
+                layer: result.layer || null,
+                isSelectionScan: isSelectionScan,
             });
 
-            // FIX 2: Luôn gửi log thẳng lên backend (không phụ thuộc dashboard đang mở hay không)
+            // Luôn gửi log thẳng lên backend
             _postScanLog(targetText, aiData, isMalicious);
 
-            // Đồng thời bắn tín hiệu sang tab Admin Dashboard nếu đang mở
+            // Bắn tín hiệu qua Dashboard nếu đang mở
             chrome.tabs.query({}, (tabs) => {
                 tabs.forEach(t => {
                     if (t.url && (t.url.includes("localhost:5173") || t.url.includes("127.0.0.1:5173"))) {
@@ -86,7 +101,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
         } catch (error) {
             console.error("Lỗi khi kết nối Backend:", error);
-            // Vẫn truyền sang content.js báo lỗi
             chrome.tabs.sendMessage(tab.id, {
                 action: "show_result",
                 text: targetText,
@@ -98,7 +112,96 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     }
 });
 
-// FIX 2: Gửi log scan về backend với retry 1 lần sau 2 giây nếu thất bại
+
+// ── Handler: Quét bằng DistilBERT thủ công (từ nút bấm trên banner) ──────
+// Content script gửi message này khi user bấm "QUÉT BẰNG DISTILBERT"
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === "scan_distilbert") {
+        const { text, pageUrl } = request;
+        console.log("🧠 [SELECTION] Quét DistilBERT thủ công cho:", text.substring(0, 80));
+
+        fetch("https://localhost:8080/api/scan", {
+            method: "POST",
+            headers: SWG_GATEWAY_HEADERS,
+            body: JSON.stringify({
+                text: text,
+                url: pageUrl || "",
+                selection_scan: true,
+                force_distilbert: true,
+            })
+        })
+        .then(res => res.json())
+        .then(result => {
+            const aiData = {
+                fasttext: result.fasttext || null,
+                distilbert: result.distilbert || null,
+                layer: result.layer || "DistilBERT",
+                detail: result.detail || "",
+                status: result.status || null,
+                label: result.label || null,
+                score: (result.score != null) ? result.score : null,
+                waf_blocked: false,
+                attack_type: null,
+                page_url_flagged: result.page_url_flagged || false,
+                page_attack_type: result.page_attack_type || null,
+                degraded: false,
+                pattern_engine: result.pattern_engine || null,
+                override_reason: result.override_reason || null,
+                selection_scan: true,
+                low_confidence: false, // DistilBERT kết quả cuối − không hiện nút nữa
+                force_distilbert: true,
+            };
+
+            const isMalicious = result.label === "Scam";
+            _postScanLog(text, aiData, isMalicious);
+
+            sendResponse({ success: true, aiData, isMalicious });
+        })
+        .catch(err => {
+            console.error("[SELECTION] DistilBERT scan error:", err);
+            sendResponse({ success: false, error: err.message });
+        });
+
+        return true; // Báo Chrome biết sendResponse sẽ gọi bất đồng bộ
+    }
+
+    // ── Handler: Gửi báo cáo chờ duyệt tới Admin (Port 5003) ─────────────
+    if (request.action === "send_report") {
+        fetch("http://localhost:5003/api/report", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(request.payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            sendResponse(data);
+
+            // Nếu gửi thành công → lưu report_id và bắt đầu polling
+            if (data.success && data.report_id) {
+                const reportId = data.report_id;
+                const tabId    = sender.tab ? sender.tab.id : null;
+
+                chrome.storage.local.set({
+                    [`pending_verdict_${reportId}`]: {
+                        reportId,
+                        tabId,
+                        startedAt: Date.now()
+                    }
+                });
+
+                startVerdictPolling(reportId, tabId);
+            }
+        })
+        .catch(err => {
+            console.error("Lỗi khi gửi báo cáo tới Port 5003:", err);
+            sendResponse({ success: false, message: err.toString() });
+        });
+        return true;
+    }
+});
+
+
+// Gửi log scan về backend với retry 1 lần sau 2 giây nếu thất bại
 function _postScanLog(text, aiData, isMalicious) {
     const payload = JSON.stringify({
         text: text,
@@ -129,7 +232,6 @@ function _postScanLog(text, aiData, isMalicious) {
         })
         .catch(err => {
             console.warn("⚠️ [SWG] Lần 1 thất bại (" + err.message + "), thử lại sau 2s...");
-            // Retry 1 lần sau 2 giây
             setTimeout(() => {
                 doPost()
                     .then(res => {
@@ -142,9 +244,8 @@ function _postScanLog(text, aiData, isMalicious) {
 }
 
 
-// WAF Layer 1 — Kiểm tra URL khi điều hướng (Port 8000)
+// WAF Layer 1 — Kiểm tra URL khi điều hướng (Port 8080)
 chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
-    // Chỉ kiểm tra frame chính, chỉ http/https, bỏ qua localhost (tránh loop với dashboard)
     if (details.frameId !== 0) return;
     if (!details.url.startsWith('http')) return;
     if (details.url.includes('localhost') || details.url.includes('127.0.0.1')) return;
@@ -154,18 +255,23 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
         const response = await fetch('https://localhost:8080/api/scan', {
             method: 'POST',
             headers: SWG_GATEWAY_HEADERS,
-            body: JSON.stringify({ text: details.url, url: details.url })
+            body: JSON.stringify({
+                text: details.url,
+                url: details.url,
+                selection_scan: false,
+                force_distilbert: false,
+            })
         });
         const result = await response.json();
-        
+
         let isMalicious = false;
         if (result.status === "BLOCKED_BY_WAF" || result.label === "Scam") {
             console.warn("🚨 WAF ĐÃ CHẶN URL NÀY:", details.url);
             isMalicious = true;
         }
 
-        let aiData = { 
-            fasttext: result.fasttext || null, 
+        let aiData = {
+            fasttext: result.fasttext || null,
             distilbert: result.distilbert || null,
             layer: result.layer || null,
             detail: result.detail || "",
@@ -179,11 +285,11 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
             degraded: result.degraded || false,
             pattern_engine: result.pattern_engine || null,
             override_reason: result.override_reason || null,
+            selection_scan: false,
+            low_confidence: false,
         };
 
-        // BUG FIX #9: Hiển thị banner cảnh báo cho người dùng khi URL bị WAF chặn
         if (isMalicious && details.tabId) {
-            // Đợi tab load xong một chút rồi inject banner
             setTimeout(() => {
                 chrome.tabs.sendMessage(details.tabId, {
                     action: "show_result",
@@ -195,10 +301,8 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
             }, 800);
         }
 
-        // FIX 2: Luôn gửi log URL scan lên backend
         _postScanLog(`[URL SCAN] ${details.url}`, aiData, isMalicious);
 
-        // BUG FIX #1: Gửi log URL Scan về Dashboard — hỗ trợ cả localhost và 127.0.0.1
         chrome.tabs.query({}, (tabs) => {
             tabs.forEach(t => {
                 if (t.url && (t.url.includes("localhost:5173") || t.url.includes("127.0.0.1:5173"))) {
@@ -216,44 +320,6 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
 });
 
 
-// Xử lý gửi báo cáo cho Admin và bắt đầu polling chờ phản hồi
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === "send_report") {
-        fetch("http://localhost:5003/api/report", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(request.payload)
-        })
-        .then(res => res.json())
-        .then(data => {
-            sendResponse(data);
-
-            // Nếu gửi thành công → lưu report_id và bắt đầu polling
-            if (data.success && data.report_id) {
-                const reportId = data.report_id;
-                const tabId    = sender.tab ? sender.tab.id : null;
-
-                // Lưu vào storage để polling
-                chrome.storage.local.set({
-                    [`pending_verdict_${reportId}`]: {
-                        reportId,
-                        tabId,
-                        startedAt: Date.now()
-                    }
-                });
-
-                // Bắt đầu polling mỗi 10 giây, tối đa 30 phút
-                startVerdictPolling(reportId, tabId);
-            }
-        })
-        .catch(err => {
-            console.error("Lỗi khi gửi báo cáo tới Port 5003:", err);
-            sendResponse({ success: false, message: err.toString() });
-        });
-        return true; // Báo Chrome biết sendResponse sẽ gọi bất đồng bộ
-    }
-});
-
 // ── Polling chờ Admin xác nhận ────────────────────────────────────────────
 function startVerdictPolling(reportId, tabId) {
     const POLL_INTERVAL_MS = 10000; // 10 giây/lần
@@ -265,7 +331,6 @@ function startVerdictPolling(reportId, tabId) {
     const intervalId = setInterval(async () => {
         pollCount++;
 
-        // Quá thời gian → dừng polling
         if (pollCount > MAX_POLLS) {
             console.log(`⏰ Hết thời gian chờ Admin cho báo cáo [${reportId}]`);
             clearInterval(intervalId);
@@ -279,27 +344,23 @@ function startVerdictPolling(reportId, tabId) {
 
             const data = await res.json();
 
-            // Admin đã xác nhận → gửi kết quả xuống tab người dùng
             if (data.status === "verified" && data.admin_verdict) {
                 clearInterval(intervalId);
                 chrome.storage.local.remove(`pending_verdict_${reportId}`);
 
                 console.log(`✅ Admin đã xác nhận [${reportId}]: ${data.admin_verdict}`);
 
-                // Gửi xuống content.js của tab gốc
                 if (tabId) {
                     chrome.tabs.sendMessage(tabId, {
-                        action:         "show_verdict",
-                        verdict:        data.admin_verdict,  // 'scam' | 'safe'
-                        adminNote:      data.admin_note || "",
-                        reportId:       reportId,
-                    }).catch(() => {
-                        // Tab có thể đã đóng — bỏ qua
-                    });
+                        action:    "show_verdict",
+                        verdict:   data.admin_verdict,
+                        adminNote: data.admin_note || "",
+                        reportId:  reportId,
+                    }).catch(() => {});
                 }
             }
         } catch (e) {
             // Server tạm ngắt — bỏ qua lần này, tiếp tục poll
         }
     }, POLL_INTERVAL_MS);
-}
+}

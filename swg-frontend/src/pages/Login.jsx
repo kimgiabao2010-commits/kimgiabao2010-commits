@@ -44,25 +44,23 @@ const STYLE = `
 
 /* ─── Floating icon wrapper ───────────────────────────────── */
 const FloatIcon = ({ icon: Icon, style, anim }) => (
-  <div className="absolute pointer-events-none text-indigo-600 select-none"
+  <div className="absolute pointer-events-none text-indigo-600/10 select-none mix-blend-multiply"
     style={{ animation: anim, ...style }}>
-    <Icon strokeWidth={1} />
+    <Icon strokeWidth={1.5} />
   </div>
 );
 
-/* ─── Pulsing ring ────────────────────────────────────────── */
 const PulseRing = ({ style }) => (
-  <div className="absolute rounded-full border border-indigo-400 pointer-events-none"
+  <div className="absolute rounded-full border border-indigo-200/60 pointer-events-none"
     style={{ animation: 'pulseRing 3s ease-out infinite', ...style }} />
 );
 
-/* ─── Corner bracket ──────────────────────────────────────── */
 const Corner = ({ pos }) => {
   const cls = {
-    tl: 'top-0 left-0 border-t-2 border-l-2',
-    br: 'bottom-0 right-0 border-b-2 border-r-2',
+    tl: 'top-0 left-0 border-t-2 border-l-2 rounded-tl-2xl',
+    br: 'bottom-0 right-0 border-b-2 border-r-2 rounded-br-2xl',
   }[pos];
-  return <span className={`absolute w-5 h-5 border-indigo-300 ${cls} pointer-events-none`} />;
+  return <span className={`absolute w-8 h-8 border-indigo-300 ${cls} pointer-events-none`} />;
 };
 
 const Login = ({ onNavigateToRegister }) => {
@@ -84,104 +82,85 @@ const Login = ({ onNavigateToRegister }) => {
 
   return (
     <>
-      {/* Inject keyframes */}
       <style>{STYLE}</style>
 
-      <div className="min-h-screen flex items-center justify-center relative overflow-hidden"
-        style={{ background: '#F5F5F7' }}>
+      <div className="min-h-screen flex items-center justify-center relative overflow-hidden font-sans"
+        style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)' }}>
 
         {/* ── Background floating icons ─────────────────────── */}
-        <FloatIcon icon={Shield}       anim="floatA 7s ease-in-out infinite"        style={{ top: '8%',  left: '6%',  width: 52, height: 52, opacity: 0.08 }} />
-        <FloatIcon icon={Lock}         anim="floatB 9s ease-in-out infinite"        style={{ top: '55%', left: '4%',  width: 36, height: 36, opacity: 0.07 }} />
-        <FloatIcon icon={ShieldCheck}  anim="floatC 8s ease-in-out infinite"        style={{ top: '20%', right: '5%', width: 48, height: 48, opacity: 0.07 }} />
-        <FloatIcon icon={KeyRound}     anim="floatA 11s ease-in-out infinite 1s"   style={{ top: '72%', right: '7%', width: 38, height: 38, opacity: 0.07 }} />
-        <FloatIcon icon={Fingerprint}  anim="floatB 10s ease-in-out infinite 2s"   style={{ top: '80%', left: '12%', width: 44, height: 44, opacity: 0.06 }} />
-        <FloatIcon icon={Wifi}         anim="floatC 12s ease-in-out infinite 0.5s" style={{ top: '40%', right: '3%', width: 32, height: 32, opacity: 0.06 }} />
-        <FloatIcon icon={Shield}       anim="floatB 13s ease-in-out infinite 3s"   style={{ top: '88%', right: '18%',width: 28, height: 28, opacity: 0.05 }} />
-        <FloatIcon icon={Lock}         anim="floatA 8s ease-in-out infinite 1.5s"  style={{ top: '12%', left: '30%', width: 24, height: 24, opacity: 0.05 }} />
+        <FloatIcon icon={Shield}       anim="floatA 7s ease-in-out infinite"        style={{ top: '8%',  left: '6%',  width: 64, height: 64 }} />
+        <FloatIcon icon={Lock}         anim="floatB 9s ease-in-out infinite"        style={{ top: '55%', left: '4%',  width: 48, height: 48 }} />
+        <FloatIcon icon={ShieldCheck}  anim="floatC 8s ease-in-out infinite"        style={{ top: '20%', right: '5%', width: 56, height: 56 }} />
+        <FloatIcon icon={KeyRound}     anim="floatA 11s ease-in-out infinite 1s"   style={{ top: '72%', right: '7%', width: 44, height: 44 }} />
+        <FloatIcon icon={Fingerprint}  anim="floatB 10s ease-in-out infinite 2s"   style={{ top: '80%', left: '12%', width: 52, height: 52 }} />
+        <FloatIcon icon={Wifi}         anim="floatC 12s ease-in-out infinite 0.5s" style={{ top: '40%', right: '3%', width: 40, height: 40 }} />
+        <FloatIcon icon={Shield}       anim="floatB 13s ease-in-out infinite 3s"   style={{ top: '88%', right: '18%',width: 32, height: 32 }} />
+        <FloatIcon icon={Lock}         anim="floatA 8s ease-in-out infinite 1.5s"  style={{ top: '12%', left: '30%', width: 28, height: 28 }} />
 
         {/* ── Pulsing rings ─────────────────────────────────── */}
-        <PulseRing style={{ width: 120, height: 120, top: '5%',  left: '3%',  animationDelay: '0s'   }} />
-        <PulseRing style={{ width: 80,  height: 80,  bottom: '8%', right: '4%', animationDelay: '1.5s' }} />
-        <PulseRing style={{ width: 60,  height: 60,  top: '60%', left: '8%',  animationDelay: '3s'   }} />
-
-        {/* ── Soft radial glow ──────────────────────────────── */}
-        <div className="absolute pointer-events-none"
-          style={{
-            top: '-20%', left: '-10%',
-            width: 500, height: 500,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(99,102,241,0.10) 0%, transparent 70%)',
-          }} />
-        <div className="absolute pointer-events-none"
-          style={{
-            bottom: '-20%', right: '-10%',
-            width: 500, height: 500,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%)',
-          }} />
+        <PulseRing style={{ width: 140, height: 140, top: '5%',  left: '3%',  animationDelay: '0s'   }} />
+        <PulseRing style={{ width: 100, height: 100, bottom: '8%', right: '4%', animationDelay: '1.5s' }} />
+        <PulseRing style={{ width: 80,  height: 80,  top: '60%', left: '8%',  animationDelay: '3s'   }} />
 
         {/* ── Scan line across full page ────────────────────── */}
         <div className="absolute left-0 right-0 h-px pointer-events-none"
           style={{
-            background: 'linear-gradient(90deg, transparent, rgba(99,102,241,0.25), transparent)',
+            background: 'linear-gradient(90deg, transparent, rgba(99,102,241,0.3), transparent)',
             animation: 'scanLine 6s linear infinite',
           }} />
 
         {/* ── Card container ───────────────────────────────── */}
-        <div className="relative z-10 w-full max-w-sm mx-4">
-
+        <div className="relative z-10 w-full max-w-md mx-4">
+          
           {/* Brand */}
           <div className="text-center mb-8">
-            {/* Animated shield icon above brand */}
-            <div className="inline-flex items-center justify-center w-12 h-12 mb-4 relative">
-              {/* outer pulsing ring */}
+            <div className="inline-flex items-center justify-center w-16 h-16 mb-4 relative">
               <div className="absolute inset-0 rounded-full border border-indigo-200"
                 style={{ animation: 'pulseRing 2.5s ease-out infinite' }} />
-              <div className="w-10 h-10 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center">
-                <Shield size={18} strokeWidth={1.5} className="text-indigo-600" />
+              <div className="w-14 h-14 rounded-full bg-white border border-indigo-100 shadow-sm flex items-center justify-center">
+                <Shield size={26} strokeWidth={1.5} className="text-indigo-600" />
               </div>
             </div>
 
-            <div className="flex items-center justify-center gap-2.5 mb-2">
-              <Terminal size={16} strokeWidth={1.25} className="text-indigo-600" />
-              <span className="text-gray-900 font-bold text-lg tracking-tight">
+            <div className="flex items-center justify-center gap-3 mb-2">
+              <Terminal size={22} strokeWidth={1.5} className="text-indigo-600" />
+              <span className="text-slate-900 font-black text-2xl tracking-tight">
                 SWG<span className="text-indigo-600">GUARD</span>
               </span>
             </div>
-            <p className="text-[0.6rem] font-bold text-gray-400 uppercase tracking-[0.2em]">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
               // Sec-Ops Admin Console
             </p>
           </div>
 
           {/* Card */}
-          <div className="relative bg-white border border-gray-200/80 p-8 shadow-sm shadow-gray-200/60">
+          <div className="relative bg-white/95 backdrop-blur-xl border border-white rounded-3xl p-8 sm:p-10 shadow-2xl shadow-indigo-600/10">
             <Corner pos="tl" />
             <Corner pos="br" />
 
             {/* Card header */}
-            <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
-              <h1 className="text-[0.65rem] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <Target size={13} strokeWidth={1.5} />
+            <div className="flex items-center justify-between mb-8 pb-5 border-b border-slate-100">
+              <h1 className="text-sm font-bold text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                <Target size={16} className="text-indigo-600" />
                 Admin Authentication
               </h1>
-              <div className="px-2 py-0.5 bg-gray-900 text-white font-bold text-[0.55rem] tracking-widest uppercase flex items-center gap-1.5">
-                <Shield size={9} strokeWidth={1.5} />
+              <div className="px-2.5 py-1 bg-slate-900 text-white rounded-lg font-bold text-xs tracking-widest uppercase flex items-center gap-1.5 shadow-md shadow-slate-900/20">
+                <Shield size={12} strokeWidth={2} />
                 JWT
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-6">
 
               {/* Username */}
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <label htmlFor="login-username"
-                  className="block text-[0.65rem] font-bold text-gray-400 uppercase tracking-widest">
+                  className="block text-xs font-bold text-slate-500 uppercase tracking-widest">
                   Username
                 </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <User size={14} strokeWidth={1.5} className="text-gray-300" />
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                    <User size={16} strokeWidth={1.5} className="text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
                   </div>
                   <input
                     id="login-username"
@@ -190,20 +169,20 @@ const Login = ({ onNavigateToRegister }) => {
                     onChange={(e) => { setUsername(e.target.value); setLocalError(''); clearError(); }}
                     placeholder="Nhập tên tài khoản admin"
                     autoComplete="username"
-                    className="w-full pl-9 pr-4 py-2.5 bg-gray-50/80 border border-gray-200 text-gray-900 text-xs font-medium placeholder:text-gray-300 focus:outline-none focus:border-indigo-400 focus:bg-white transition-colors"
+                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm font-medium placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-sm"
                   />
                 </div>
               </div>
 
               {/* Password */}
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <label htmlFor="login-password"
-                  className="block text-[0.65rem] font-bold text-gray-400 uppercase tracking-widest">
+                  className="block text-xs font-bold text-slate-500 uppercase tracking-widest">
                   Mật khẩu
                 </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock size={14} strokeWidth={1.5} className="text-gray-300" />
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                    <Lock size={16} strokeWidth={1.5} className="text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
                   </div>
                   <input
                     id="login-password"
@@ -212,20 +191,20 @@ const Login = ({ onNavigateToRegister }) => {
                     onChange={(e) => { setPassword(e.target.value); setLocalError(''); clearError(); }}
                     placeholder="••••••••"
                     autoComplete="current-password"
-                    className="w-full pl-9 pr-10 py-2.5 bg-gray-50/80 border border-gray-200 text-gray-900 text-xs font-medium placeholder:text-gray-300 focus:outline-none focus:border-indigo-400 focus:bg-white transition-colors"
+                    className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 text-sm font-medium placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-sm"
                   />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-300 hover:text-gray-500 transition-colors">
-                    {showPassword ? <EyeOff size={14} strokeWidth={1.5} /> : <Eye size={14} strokeWidth={1.5} />}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-indigo-600 transition-colors">
+                    {showPassword ? <EyeOff size={16} strokeWidth={1.5} /> : <Eye size={16} strokeWidth={1.5} />}
                   </button>
                 </div>
               </div>
 
               {/* Error */}
               {displayError && (
-                <div className="flex items-start gap-2.5 p-3 bg-rose-50 border border-rose-200/60">
-                  <AlertTriangle size={13} strokeWidth={2} className="text-rose-500 shrink-0 mt-0.5" />
-                  <p className="text-[0.65rem] font-semibold text-rose-700">{displayError}</p>
+                <div className="flex items-start gap-3 p-3.5 bg-rose-50 border border-rose-100 rounded-xl">
+                  <AlertTriangle size={16} strokeWidth={2} className="text-rose-500 shrink-0 mt-0.5" />
+                  <p className="text-xs font-semibold text-rose-700 leading-relaxed">{displayError}</p>
                 </div>
               )}
 
@@ -234,23 +213,23 @@ const Login = ({ onNavigateToRegister }) => {
                 id="login-submit-btn"
                 type="submit"
                 disabled={isLoading}
-                className={`w-full flex items-center justify-center gap-2 py-2.5 text-[0.65rem] font-bold uppercase tracking-widest transition-all active:scale-95 ${
+                className={`w-full flex items-center justify-center gap-2.5 py-3.5 rounded-xl text-sm font-bold uppercase tracking-widest transition-all active:scale-[0.98] ${
                   isLoading
-                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
-                    : 'bg-gray-900 text-white hover:bg-indigo-700'
+                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200 shadow-sm'
+                    : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/20 hover:shadow-indigo-600/40 border border-indigo-500'
                 }`}
               >
                 {isLoading
-                  ? <><Loader2 size={13} strokeWidth={2} className="animate-spin" /><span>Đang xác thực...</span></>
-                  : <><Lock size={13} strokeWidth={2} /><span>Đăng nhập</span></>}
+                  ? <><Loader2 size={16} strokeWidth={2} className="animate-spin" /><span>Đang xác thực...</span></>
+                  : <><Lock size={16} strokeWidth={2} /><span>Đăng nhập hệ thống</span></>}
               </button>
             </form>
 
             {/* Divider */}
-            <div className="flex items-center gap-3 my-5">
-              <div className="flex-1 h-px bg-gray-100" />
-              <span className="text-[0.58rem] font-bold text-gray-300 uppercase tracking-widest">hoặc</span>
-              <div className="flex-1 h-px bg-gray-100" />
+            <div className="flex items-center gap-4 my-7">
+              <div className="flex-1 h-px bg-slate-100" />
+              <span className="text-xs font-bold text-slate-300 uppercase tracking-widest">hoặc</span>
+              <div className="flex-1 h-px bg-slate-100" />
             </div>
 
             {/* Register link */}
@@ -258,14 +237,14 @@ const Login = ({ onNavigateToRegister }) => {
               id="goto-register-btn"
               type="button"
               onClick={onNavigateToRegister}
-              className="w-full py-2.5 text-[0.65rem] font-bold uppercase tracking-widest text-gray-500 hover:text-gray-900 hover:bg-gray-50 border border-gray-200 hover:border-gray-300 transition-all"
+              className="w-full py-3.5 rounded-xl text-xs font-bold uppercase tracking-widest text-slate-600 hover:text-slate-900 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 transition-all focus:outline-none focus:ring-4 focus:ring-slate-100 shadow-sm hover:shadow-md"
             >
-              Tạo tài khoản Admin mới
+              Đăng ký tài khoản Admin mới
             </button>
           </div>
 
           {/* Footer */}
-          <p className="text-center text-[0.55rem] font-bold text-gray-300 uppercase tracking-widest mt-5">
+          <p className="text-center text-xs font-bold text-slate-400 uppercase tracking-widest mt-8">
             SWG Shield v4.1 · VNU Information Security 2026
           </p>
         </div>
