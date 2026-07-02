@@ -1,0 +1,2403 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SWG Shield – Smart Security System [Projector Edition]</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   EXPORT PANEL UI
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+#export-panel {
+  position: fixed;
+  top: 20px; right: 20px;
+  z-index: 9999;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity .3s, transform .3s;
+  pointer-events: none;
+}
+#export-panel.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: all;
+}
+.exp-btn {
+  display: flex; align-items: center; gap: 7px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; font-weight: 500; letter-spacing: .5px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.15);
+  background: rgba(15,25,35,.85);
+  backdrop-filter: blur(12px);
+  color: #e8f4fd;
+  cursor: pointer;
+  transition: background .2s, border-color .2s, transform .15s;
+  user-select: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  white-space: nowrap;
+}
+.exp-btn:hover { background: rgba(14,165,233,.18); border-color: rgba(14,165,233,.45); transform: translateY(-1px); }
+.exp-btn.pdf  { border-color: rgba(14,165,233,.3); }
+.exp-btn.pptx { border-color: rgba(124,58,237,.3); }
+.exp-btn-icon { font-size: 18px; }
+#exp-close {
+  width: 28px; height: 28px;
+  border-radius: 50%; border: 1px solid rgba(255,255,255,.12);
+  background: rgba(15,25,35,.8); backdrop-filter: blur(8px);
+  color: rgba(139,165,188,.6);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 18px;
+  transition: background .2s, color .2s;
+}
+#exp-close:hover { background: rgba(220,38,38,.2); color: #f87171; }
+
+/* Floating toggle button (E key hint) */
+#exp-toggle {
+  position: fixed;
+  top: 20px; right: 20px;
+  z-index: 9998;
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(15,25,35,.6);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  color: rgba(139,165,188,.7);
+  transition: opacity .3s, color .2s, background .2s, border-color .2s;
+  opacity: 0;
+}
+body:hover #exp-toggle { opacity: 1; }
+#exp-toggle:hover { background: rgba(14,165,233,.15); border-color: rgba(14,165,233,.3); color: var(--cyan2); }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   @MEDIA PRINT — PDF Export (Perfect 16:9 Fit)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+@page {
+  size: 1920px 1080px;
+  margin: 0;
+}
+
+@media print {
+  /* Force exact colors in PDF */
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  html, body {
+    width: 1920px !important;
+    height: 1080px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #0f1923 !important;
+  }
+
+  /* Hide ALL UI chrome */
+  #ambient, #hud, #prog, #dots, #veil,
+  #export-panel, #exp-toggle,
+  #nav-prev, #nav-next, #key-hint,
+  #slide-num, #baton-clone,
+  #pptx-modal { display: none !important; }
+
+  #stage {
+    position: static !important;
+    width: 1920px !important;
+    height: 1080px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    perspective: none !important;
+  }
+
+  #strip {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 1920px !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: none !important;
+    transform-style: flat !important;
+    transition: none !important;
+    will-change: auto !important;
+  }
+
+  /* Each slide fits perfectly into one page - size 1920x1080 */
+  .slide {
+    width: 1920px !important;
+    height: 1080px !important;
+    min-height: 1080px !important;
+    max-height: 1080px !important;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+    position: relative !important;
+    flex-shrink: 0 !important;
+    break-after: page !important;
+    page-break-after: always !important;
+    overflow: hidden !important;
+    padding: 40px 60px !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  /* Disable animation for slide */
+  .slide::before, .slide::after {
+    opacity: 1 !important;
+    transition: none !important;
+  }
+
+  .slide:last-child {
+    break-after: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  /* Disable animation for all text elements */
+  .s-eyebrow, .s-title, .s-sub, .card {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+
+  /* Ensure content inside card displays fully */
+  .card {
+    overflow: visible !important;
+  }
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   RESET & ROOT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --ink:    #0f1923;
+  --ink2:   #1e2d3d;
+  --ink3:   #2d4059;
+  --paper:  #f0f4f8;
+  --paper2: #e2eaf3;
+  --white:  #ffffff;
+  --cyan:   #0ea5e9;
+  --cyan2:  #38bdf8;
+  --purple: #7c3aed;
+  --purple2:#a78bfa;
+  --green:  #059669;
+  --green2: #34d399;
+  --amber:  #d97706;
+  --red:    #dc2626;
+  --dim:    #6a8090;
+  /* Boosted muted color for projector: vivid enough for hall lighting */
+  --muted:  #c8ddf0;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  font-family: 'Space Grotesk', sans-serif;
+  background: var(--ink);
+  color: var(--ink);
+  cursor: default;
+  user-select: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   STAGE — horizontal infinite strip
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+#stage {
+  position: fixed; inset: 0;
+  overflow: hidden;
+  perspective: 1400px;
+}
+
+/* Shared ambient bg that stays static */
+#ambient {
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse 60% 50% at 15% 20%, rgba(14,165,233,.12), transparent),
+    radial-gradient(ellipse 50% 60% at 85% 80%, rgba(124,58,237,.10), transparent),
+    radial-gradient(ellipse 40% 40% at 50% 50%, rgba(5,150,105,.06), transparent),
+    linear-gradient(160deg, #0f1923 0%, #1a2a3a 50%, #0f1923 100%);
+  pointer-events: none; z-index: 0;
+}
+
+/* Subtle grid texture */
+#ambient::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(14,165,233,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(14,165,233,.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* Strip holds all slides side by side */
+#strip {
+  position: absolute; top: 0; left: 0;
+  height: 1080px;
+  display: flex;
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition: transform 0.85s cubic-bezier(0.77, 0, 0.18, 1);
+  z-index: 2;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   SLIDE BASE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.slide {
+  position: relative;
+  width: 1920px; 
+  height: 1080px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 40px 60px 52px;
+  overflow: hidden;
+  transform: scale(0.85) translateX(-8%) rotateY(12deg);
+  opacity: 0.15;
+  filter: blur(10px) saturate(0%);
+  transform-origin: center right;
+  will-change: transform, opacity, filter;
+  transition: transform 0.85s cubic-bezier(0.77, 0, 0.18, 1), 
+              opacity 0.85s ease, filter 0.85s ease;
+}
+
+.slide.active {
+  transform: scale(1) translateX(0) rotateY(0deg);
+  opacity: 1;
+  filter: blur(0px) saturate(100%);
+  transform-origin: center center;
+}
+
+.slide.active ~ .slide {
+  transform: scale(0.85) translateX(8vw) rotateY(-12deg);
+  transform-origin: center left;
+}
+
+/* Per-slide tinted glass panel */
+.slide::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: rgba(15,25,35,.82);
+  backdrop-filter: blur(0px);
+  pointer-events: none; z-index: 0;
+}
+
+.slide > * { position: relative; z-index: 1; }
+
+/* Colored top accent bar per slide */
+.slide::after {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; z-index: 10;
+}
+.accent-cyan::after   { background: linear-gradient(90deg, var(--cyan), var(--purple)); }
+.accent-purple::after { background: linear-gradient(90deg, var(--purple), var(--cyan)); }
+.accent-green::after  { background: linear-gradient(90deg, var(--green), var(--cyan)); }
+.accent-amber::after  { background: linear-gradient(90deg, var(--amber), var(--red)); }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   SLIDE HEADER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.s-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px; font-weight: 500;
+  letter-spacing: 4px; text-transform: uppercase;
+  color: var(--cyan); margin-bottom: 10px;
+  display: flex; align-items: center; gap: 14px;
+  opacity: 1;
+  text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2);
+}
+.s-eyebrow span {
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 28px; line-height: 1;
+  width: 38px; height: 38px;
+  border-radius: 8px;
+  background: rgba(14,165,233,.18);
+  border: 1px solid rgba(14,165,233,.35);
+  transition: transform .3s cubic-bezier(.34,1.56,.64,1), opacity .3s;
+}
+
+/* Baton flying clone */
+#baton-clone {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: rgba(14,165,233,.15);
+  border: 1px solid rgba(14,165,233,.35);
+  backdrop-filter: blur(4px);
+  font-size: 18px;
+  line-height: 1;
+  transition: left 0.75s cubic-bezier(0.77,0,0.18,1),
+              top  0.75s cubic-bezier(0.77,0,0.18,1),
+              width 0.75s cubic-bezier(0.77,0,0.18,1),
+              height 0.75s cubic-bezier(0.77,0,0.18,1),
+              border-radius 0.75s cubic-bezier(0.77,0,0.18,1),
+              opacity 0.4s ease;
+}
+
+.s-title {
+  font-size: 86px;
+  text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2);
+  font-weight: 700; line-height: 1.15;
+  color: #e8f4fd;
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
+  margin-top: 0;
+}
+
+.s-sub {
+  font-size: 34px;
+  line-height: 1.45;
+  color: rgba(200,221,240,0.95);
+  font-weight: 400;
+  margin-bottom: 28px;
+  letter-spacing: 0.1px;
+  text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   LAYOUT HELPERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.cols { display: flex; gap: 16px; flex: 1; min-height: 0; }
+.col  { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+.col-4 { flex: 0 0 34%; }
+.col-6 { flex: 0 0 50%; }
+.col-8 { flex: 0 0 62%; }
+.col-fill { flex: 1; }
+
+.rows { display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   GLASS CARDS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.card {
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 12px;
+  padding: 24px 28px;
+  position: relative;
+  overflow: hidden;
+}
+.card-fill { flex: 1; }
+
+.card-c { border-top: 2px solid rgba(14,165,233,.8); }
+.card-p { border-top: 2px solid rgba(124,58,237,.8); }
+.card-g { border-top: 2px solid rgba(5,150,105,.8); }
+.card-a { border-top: 2px solid rgba(217,119,6,.8); }
+.card-r { border-top: 2px solid rgba(220,38,38,.8); }
+
+/* soft glow inside card */
+.card-c::before { content:''; position:absolute; inset:0; background:radial-gradient(ellipse 80% 60% at 50% 0%, rgba(14,165,233,.07), transparent); pointer-events:none; }
+.card-p::before { content:''; position:absolute; inset:0; background:radial-gradient(ellipse 80% 60% at 50% 0%, rgba(124,58,237,.09), transparent); pointer-events:none; }
+.card-g::before { content:''; position:absolute; inset:0; background:radial-gradient(ellipse 80% 60% at 50% 0%, rgba(5,150,105,.07), transparent); pointer-events:none; }
+.card-a::before { content:''; position:absolute; inset:0; background:radial-gradient(ellipse 80% 60% at 50% 0%, rgba(217,119,6,.07), transparent); pointer-events:none; }
+
+.card-title {
+  font-size: 28px; font-weight: 600; letter-spacing: 0.8px;
+  text-transform: uppercase; margin-bottom: 14px;
+  text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2);
+}
+.ct-c { color: var(--cyan2); }
+.ct-p { color: var(--purple2); }
+.ct-g { color: var(--green2); }
+.ct-a { color: #fbbf24; }
+.ct-r { color: #f87171; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   TYPOGRAPHY UTILITIES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.body-text {
+  font-size: 30px; line-height: 1.6;
+  color: rgba(224,240,255,.95);
+  text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2);
+}
+.body-text strong { color: #ffffff; font-weight: 600; }
+
+.mono {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 26px;
+}
+
+.chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 22px; font-weight: 600; letter-spacing: .5px;
+  padding: 8px 18px; border-radius: 20px;
+  font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+}
+.chip-c { background: rgba(14,165,233,.2); color: var(--cyan2); border: 1px solid rgba(14,165,233,.4); }
+.chip-p { background: rgba(124,58,237,.22); color: var(--purple2); border: 1px solid rgba(124,58,237,.45); }
+.chip-g { background: rgba(5,150,105,.2); color: var(--green2); border: 1px solid rgba(5,150,105,.4); }
+.chip-a { background: rgba(217,119,6,.2); color: #fbbf24; border: 1px solid rgba(217,119,6,.45); }
+.chip-r { background: rgba(220,38,38,.2); color: #f87171; border: 1px solid rgba(220,38,38,.45); }
+.chip-w { background: rgba(255,255,255,.1); color: rgba(224,240,255,.9); border: 1px solid rgba(255,255,255,.2); }
+
+/* bullet list */
+.blist { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+.blist li {
+  display: flex; align-items: flex-start; gap: 14px;
+  font-size: 30px; line-height: 1.55;
+  color: rgba(224,240,255,.95);
+  text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2);
+}
+.blist li::before {
+  content: '';
+  display: block; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--cyan); margin-top: 12px; flex-shrink: 0;
+  box-shadow: 0 0 8px rgba(14,165,233,.7);
+}
+.blist li strong { color: #ffffff; }
+
+/* stat number */
+.stat-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 76px; font-weight: 700;
+  line-height: 1; letter-spacing: -1px;
+  color: var(--cyan2);
+  text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2);
+}
+.stat-label { font-size: 24px; color: rgba(200,221,240,0.95); margin-top: 6px; letter-spacing: .5px; text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2); }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   IMAGE PLACEHOLDER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.img-slot {
+  flex: 1;
+  border-radius: 10px;
+  border: 1.5px dashed rgba(14,165,233,.3);
+  background: rgba(14,165,233,.04);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 8px; min-height: 120px;
+  position: relative; overflow: hidden;
+}
+.img-slot::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(14,165,233,.03) 25%, transparent 25%,
+    transparent 50%, rgba(14,165,233,.03) 50%, rgba(14,165,233,.03) 75%,
+    transparent 75%);
+  background-size: 20px 20px;
+}
+.img-slot-icon { font-size: 28px; opacity: .4; }
+.img-slot-label {
+  font-size: 10.5px; font-family: 'JetBrains Mono', monospace;
+  color: rgba(14,165,233,.5); letter-spacing: 1px; text-transform: uppercase;
+}
+.img-slot img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover; border-radius: 10px;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   FLOW ARROWS (SVG-less, CSS)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.flow {
+  display: flex; align-items: stretch; gap: 0;
+  flex: 1;
+}
+.flow-node {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 14px 10px;
+  background: rgba(255,255,255,.055);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 10px;
+  text-align: center; gap: 6px;
+  position: relative;
+}
+.flow-node-icon { font-size: 24px; }
+.flow-node-title { font-size: 18px; font-weight: 600; color: #e8f4fd; text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2); }
+.flow-node-sub   { font-size: 15px; color: rgba(200,221,240,0.92); line-height: 1.4; }
+
+.flow-arrow {
+  width: 28px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.flow-arrow::after {
+  content: '›';
+  font-size: 22px; color: rgba(14,165,233,.7);
+  line-height: 1;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   LAYER BADGE (defense layers)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.layer-badge {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+.layer-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; font-weight: 700; opacity: .7;
+}
+.layer-name { font-size: 16px; font-weight: 600; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   CODE BLOCK
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.code {
+  background: rgba(0,0,0,.55);
+  border: 1px solid rgba(14,165,233,.3);
+  border-radius: 8px;
+  padding: 16px 20px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px; line-height: 1.8;
+  color: #93d4fc;
+  overflow-x: auto;
+}
+.kw  { color: #d09afc; }
+.str { color: #93e8b0; }
+.cm  { color: rgba(139,165,188,0.7); }
+.num { color: #fcd34d; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   CONFUSION MATRIX
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.cm-grid {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr;
+  grid-template-rows: auto 1fr 1fr;
+  gap: 4px; flex: 1;
+}
+.cm-header {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 600; letter-spacing: .5px;
+  text-transform: uppercase; color: rgba(186,208,232,0.9); padding: 6px;
+}
+.cm-cell {
+  border-radius: 8px; padding: 12px 8px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 4px;
+}
+.cm-cell-num { font-family:'JetBrains Mono',monospace; font-size: 32px; font-weight: 700; }
+.cm-cell-lbl { font-size: 12px; font-weight: 600; opacity: .85; }
+.cm-tp { background: rgba(5,150,105,.22); }  .cm-tp .cm-cell-num { color: var(--green2); }
+.cm-tn { background: rgba(5,150,105,.22); }  .cm-tn .cm-cell-num { color: var(--green2); }
+.cm-fp { background: rgba(220,38,38,.18); }  .cm-fp .cm-cell-num { color: #f87171; }
+.cm-fn { background: rgba(217,119,6,.18); }  .cm-fn .cm-cell-num { color: #fbbf24; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   TIMELINE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.tl { display: flex; flex-direction: column; gap: 0; }
+.tl-item { display: flex; gap: 14px; }
+.tl-spine { display: flex; flex-direction: column; align-items: center; width: 20px; flex-shrink: 0; }
+.tl-dot {
+  width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--cyan);
+  background: var(--ink); flex-shrink: 0; margin-top: 3px;
+  box-shadow: 0 0 10px rgba(14,165,233,.7);
+}
+.tl-line { width: 1px; flex: 1; background: rgba(14,165,233,.35); min-height: 16px; }
+.tl-body { padding-bottom: 18px; flex: 1; }
+.tl-t { font-size: 18px; font-weight: 600; color: #e8f4fd; margin-bottom: 3px; text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2); }
+.tl-d { font-size: 16px; color: rgba(224,240,255,.90); line-height: 1.5; text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2); }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   GLOBAL HUD (fixed, above strip)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+#hud { position: fixed; inset: 0; z-index: 50; pointer-events: none; }
+
+/* progress line */
+#prog {
+  position: absolute; top: 0; left: 0; height: 2.5px;
+  background: linear-gradient(90deg, var(--cyan), var(--purple2));
+  box-shadow: 0 0 10px rgba(14,165,233,.5);
+  transition: width .72s cubic-bezier(0.77,0,.18,1);
+  border-radius: 0 2px 2px 0;
+}
+
+/* slide number */
+#slide-num {
+  position: absolute; bottom: 20px; right: 28px;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: rgba(200,221,240,.85); pointer-events: none;
+}
+
+/* nav dots */
+#dots {
+  position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 7px; align-items: center;
+  pointer-events: all;
+}
+.dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: rgba(139,165,188,.3); cursor: pointer;
+  transition: all .35s cubic-bezier(.34,1.56,.64,1);
+}
+.dot.on {
+  background: var(--cyan); width: 22px; border-radius: 3px;
+  box-shadow: 0 0 8px rgba(14,165,233,.6);
+}
+
+/* arrows */
+.nav-arrow {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; color: rgba(224,240,255,.75);
+  cursor: pointer; pointer-events: all;
+  transition: all .25s ease;
+  backdrop-filter: blur(4px);
+}
+.nav-arrow:hover { background: rgba(14,165,233,.15); color: var(--cyan2); border-color: rgba(14,165,233,.4); }
+#nav-prev { left: 20px; }
+#nav-next { right: 20px; }
+
+/* key hint */
+#key-hint {
+  position: absolute; bottom: 18px; left: 28px;
+  display: flex; gap: 6px; align-items: center;
+  font-size: 10.5px; color: rgba(200,221,240,.75);
+  pointer-events: none;
+}
+.k {
+  font-family: 'JetBrains Mono', monospace; font-size: 9px;
+  border: 1px solid rgba(200,221,240,.3); border-radius: 3px;
+  padding: 1px 5px; color: rgba(200,221,240,.8);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   TRANSITION VEIL — subtle flash on pan
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+#veil {
+  position: fixed; inset: 0; z-index: 40;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(14,165,233,.08), rgba(124,58,237,.08));
+  opacity: 0;
+  transition: opacity .18s ease;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   CONTENT STAGGER ENTRANCE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.slide.active .stagger > * {
+  animation: riseIn .55s cubic-bezier(.22,1,.36,1) both;
+}
+.slide.active .stagger > *:nth-child(1) { animation-delay: .08s; }
+.slide.active .stagger > *:nth-child(2) { animation-delay: .16s; }
+.slide.active .stagger > *:nth-child(3) { animation-delay: .22s; }
+.slide.active .stagger > *:nth-child(4) { animation-delay: .28s; }
+.slide.active .stagger > *:nth-child(5) { animation-delay: .34s; }
+.slide.active .stagger > *:nth-child(6) { animation-delay: .40s; }
+
+.slide.active .fade-in {
+  animation: riseIn .6s cubic-bezier(.22,1,.36,1) both;
+  animation-delay: .1s;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   SLIDE 1 · COVER  (special layout)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+#s1 { justify-content: center; }
+#s1::before { background: rgba(10,18,28,.88); }
+
+.cover-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0; flex: 1;
+  align-items: center;
+}
+.cover-left { padding-right: 48px; }
+.cover-right {
+  height: 100%; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  border-left: 1px solid rgba(14,165,233,.12);
+  padding-left: 40px;
+}
+
+.cover-badge {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  font-weight: 500; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--cyan2); background: rgba(14,165,233,.1);
+  border: 1px solid rgba(14,165,233,.25); border-radius: 20px;
+  padding: 5px 14px; margin-bottom: 28px;
+}
+.cover-badge::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--cyan2); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.8)} }
+
+.cover-h1 {
+  font-size: clamp(54px, 7vw, 90px);
+  text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2);
+  font-weight: 700; line-height: 1.0;
+  letter-spacing: -2px; color: #e8f4fd;
+  margin-bottom: 10px;
+}
+.cover-h1 em { color: var(--cyan2); font-style: normal; }
+
+.cover-desc {
+  font-size: 16px; line-height: 1.7;
+  color: rgba(224,240,255,.85);
+  max-width: 480px; margin-bottom: 32px;
+  text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2);
+}
+
+.cover-meta {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 12px 24px;
+}
+.meta-item {}
+.meta-k { font-size: 9px; font-family:'JetBrains Mono',monospace; letter-spacing:1.5px; text-transform:uppercase; color:rgba(186,208,232,0.8); margin-bottom:3px; }
+.meta-v { font-size: 16px; font-weight: 500; color: #e8f4fd; }
+
+/* Shield SVG side */
+.cover-shield {
+  width: 260px; height: 300px; position: relative;
+}
+.shield-rings {
+  position: absolute; inset: 0;
+}
+
+/* Stack chips */
+.cover-stack {
+  display: flex; flex-wrap: wrap; gap: 7px;
+  margin-top: 24px; justify-content: center;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ARCH DIAGRAM (slide 4)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.arch {
+  display: flex; gap: 10px; flex: 1; align-items: stretch;
+}
+.arch-col {
+  flex: 1; display: flex; flex-direction: column; gap: 8px; justify-content: space-between;
+}
+.arch-col-header {
+  text-align: center; font-size: 10px; font-weight: 600;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 5px; border-radius: 5px; margin-bottom: 4px;
+}
+.arch-node {
+  flex: 1; border-radius: 8px; padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.04);
+  display: flex; flex-direction: column; justify-content: center;
+  gap: 3px;
+}
+.arch-node-icon { font-size: 18px; margin-bottom: 2px; }
+.arch-node-name { font-size: 12px; font-weight: 600; color: #e8f4fd; text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2); }
+.arch-node-desc { font-size: 10px; color: rgba(186,208,232,0.85); line-height: 1.4; }
+
+.arch-arrow {
+  width: 20px; flex-shrink: 0; align-self: stretch;
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(14,165,233,.5); font-size: 16px;
+}
+
+/* WAF Event Logs Grid */
+.waf-log-grid {
+  display: grid;
+  grid-template-columns: 85px 55px 140px 1fr;
+  gap: 12px;
+  font-size: 16px;
+  line-height: 1.6;
+  font-family: 'JetBrains Mono', monospace;
+  align-items: center;
+  align-content: start;
+}
+
+.waf-log-row {
+  display: contents;
+}
+
+.waf-log-time { color: rgba(156,163,175,.8); }
+.waf-log-code { font-weight: 600; text-align: center; }
+.waf-log-ip { color: #e8f4fd; font-weight: 500; }
+.waf-log-msg { color: rgba(224,240,255,.85); }
+
+.waf-log-code.danger { color: #f87171; }
+.waf-log-code.warning { color: #fbbf24; }
+.waf-log-code.success { color: #10b981; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   LIME VISUALIZATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.lime-text {
+  font-size: 17px; line-height: 2.1;
+  color: rgba(224,240,255,.92);
+  background: rgba(0,0,0,.35); border-radius: 8px; padding: 14px 16px;
+  margin-bottom: 14px;
+}
+.hl-high { background: rgba(220,38,38,.65); color: #fff; border-radius: 3px; padding: 1px 5px; font-weight: 600; }
+.hl-med  { background: rgba(217,119,6,.5); color: #fff; border-radius: 3px; padding: 1px 5px; }
+.hl-low  { background: rgba(14,165,233,.3); color: rgba(224,240,255,.9); border-radius: 3px; padding: 1px 5px; }
+
+.feat-bar { display: flex; flex-direction: column; gap: 8px; }
+.feat-row { display: flex; align-items: center; gap: 10px; }
+.feat-label { font-size: 12px; color: rgba(224,240,255,.85); width: 90px; flex-shrink: 0; font-family: 'JetBrains Mono', monospace; }
+.feat-track { flex: 1; height: 11px; background: rgba(255,255,255,.08); border-radius: 20px; overflow: hidden; }
+.feat-fill { height: 100%; border-radius: 20px; }
+.feat-score { font-size: 11px; color: rgba(186,208,232,0.9); width: 32px; text-align: right; font-family:'JetBrains Mono',monospace; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   LOSS CURVE (mini SVG area)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.loss-chart { flex: 1; min-height: 0; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   DESIGN SYSTEM — TYPOGRAPHY TOKENS
+   Single source of truth for all text.
+   NO font-size / line-height in HTML.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+/* Slide header title — uniform across every slide */
+.text-main-title {
+  font-size: 72px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #e8f4fd;
+  letter-spacing: -0.5px;
+  text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2);
+  margin-bottom: 8px;
+  margin-top: 0;
+}
+
+/* Slide subtitle / descriptor line */
+.text-sub-title {
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: rgba(200,221,240,0.95);
+  letter-spacing: 0.1px;
+  text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2);
+  margin-bottom: 24px;
+}
+
+/* Body / bullet text */
+.text-body {
+  font-size: 22px;
+  line-height: 1.6;
+  color: rgba(224,240,255,0.95);
+  text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2);
+}
+.text-body strong { color: #ffffff; font-weight: 600; }
+
+/* Mono / code text */
+.text-mono {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  line-height: 1.7;
+  color: rgba(224,240,255,0.9);
+  text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2);
+}
+
+/* Card label text — uniform card titles */
+.text-card-label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2);
+  margin-bottom: 12px;
+}
+
+/* Pinpoint items — used in S2, S5, S7 */
+.pinpoint {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 14px 18px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.pinpoint + .pinpoint { margin-top: 10px; }
+
+.pinpoint-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 18px;
+}
+.pinpoint-icon-r { background: rgba(220,38,38,.12); border: 1px solid rgba(220,38,38,.25); }
+
+.pinpoint-body { flex: 1; min-width: 0; }
+.pinpoint-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #e8f4fd;
+  text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2);
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pinpoint-desc {
+  font-size: 18px;
+  color: var(--muted);
+  line-height: 1.5;
+  text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   CARD — Projector-ready padding 32px
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* Override the base .card padding to 32px globally */
+.card { padding: 24px 28px; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   SLIDE HEADER — fixed top coordinate
+   s-eyebrow + s-title/text-main-title
+   always at padding-top: 40px of slide
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.slide-header { flex-shrink: 0; }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ARCH DIAGRAM OVERHAUL (Slide 4)
+   Flowchart-style uniform nodes
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.arch-v2 {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+}
+
+.arch-v2-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-self: stretch;
+}
+
+.arch-v2-header {
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 8px 10px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2);
+}
+
+.arch-v2-node {
+  flex: 1;
+  border-radius: 10px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.05);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 4px;
+  text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2);
+  transition: background .2s;
+}
+
+.arch-v2-node-icon { font-size: 22px; margin-bottom: 4px; }
+.arch-v2-node-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: #e8f4fd;
+  text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2);
+  line-height: 1.2;
+}
+.arch-v2-node-desc {
+  font-size: 14px;
+  color: rgba(200,221,240,0.85);
+  line-height: 1.4;
+  text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2);
+}
+
+.arch-v2-arrow {
+  width: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: rgba(14,165,233,.7);
+  text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   FLOW-NODE OVERHAUL (Slide 8)
+   Uniform height, same font sizes
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.flow-node-v2 {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 14px;
+  background: rgba(255,255,255,.055);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 12px;
+  text-align: center;
+  gap: 8px;
+  height: 140px;
+  flex-shrink: 0;
+}
+
+.flow-node-v2-icon { font-size: 28px; flex-shrink: 0; }
+.flow-node-v2-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #e8f4fd;
+  text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2);
+  line-height: 1.2;
+}
+.flow-node-v2-sub {
+  font-size: 14px;
+  color: rgba(200,221,240,0.92);
+  line-height: 1.4;
+  text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   BLIST — each bullet = its own visible row
+   Smaller font so long sentences stay 1 line.
+   Generous gap so rows are clearly separated.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.blist {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 18px !important;
+}
+.blist li {
+  font-size: 17px !important;
+  line-height: 1.35 !important;
+  color: rgba(224,240,255,.95) !important;
+  text-shadow: 0 4px 12px rgba(0,0,0,0.6), 0 0 4px rgba(255,255,255,0.2);
+  padding: 10px 14px !important;
+  background: rgba(255,255,255,0.03) !important;
+  border-radius: 8px !important;
+  border-left: 2px solid rgba(255,255,255,0.1) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  list-style: none !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+/* Let through strong tags to stay inline, never break */
+.blist li strong {
+  white-space: nowrap !important;
+  display: inline !important;
+}
+.blist li::before {
+  content: '›' !important;
+  color: var(--cyan2) !important;
+  font-weight: 700 !important;
+  font-size: 22px !important;
+  line-height: 1.2 !important;
+  flex-shrink: 0 !important;
+}
+
+</style>
+</head>
+<body>
+
+<div id="ambient"></div>
+
+<!-- HUD (always on top) -->
+<div id="hud">
+  <div id="prog"></div>
+  <div id="slide-num">01 / 10</div>
+  <div id="dots"></div>
+  <div id="nav-prev" class="nav-arrow" onclick="goTo(cur-1)">‹</div>
+  <div id="nav-next" class="nav-arrow" onclick="goTo(cur+1)">›</div>
+  <div id="key-hint">
+    <span class="k">←</span><span class="k">→</span> arrange hướng
+  </div>
+</div>
+
+<div id="veil"></div>
+
+<div id="stage">
+<div id="strip">
+
+<!-- ═══════════════════════════════════════
+     S1 · COVER
+═══════════════════════════════════════ -->
+<div class="slide accent-cyan" id="s1">
+  <div class="cover-grid stagger">
+
+    <!-- left -->
+    <div class="cover-left">
+      <div class="cover-badge">Capstone Project · 2026</div>
+      <div class="cover-h1">SWG<br><em>Shield</em></div>
+      <div class="cover-desc">
+        BUILDING A WEB SECURITY MONITORING, PROTECTION, DETECTION, AND PREVENTION SYSTEM INTEGRATED WITH AI-BASED SCAM CONTENT ANALYSIS.
+      </div>
+      <div class="cover-meta">
+        <div class="meta-item">
+          <div class="meta-k">Student</div>
+          <div class="meta-v">Nguyen Viet Gia Bao</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-k">GVHD</div>
+          <div class="meta-v">Vo Ta Hoang</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-k">School</div>
+          <div class="meta-v">International School · VNU-HN</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-k">Year</div>
+          <div class="meta-v">2026</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- right: shield + stack -->
+    <div class="cover-right">
+      <!-- Animated shield SVG -->
+      <svg width="220" height="260" viewBox="0 0 220 260" fill="none" style="margin-bottom:28px">
+        <defs>
+          <linearGradient id="sg1" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#0ea5e9" stop-opacity=".9"/>
+            <stop offset="100%" stop-color="#7c3aed" stop-opacity=".7"/>
+          </linearGradient>
+          <linearGradient id="sg2" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#0ea5e9" stop-opacity=".3"/>
+            <stop offset="100%" stop-color="#7c3aed" stop-opacity=".2"/>
+          </linearGradient>
+          <filter id="glow-s1">
+            <feGaussianBlur stdDeviation="3" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <path d="M110 12 L198 50 L198 130 C198 182 158 228 110 248 C62 228 22 182 22 130 L22 50 Z"
+              fill="url(#sg2)" stroke="url(#sg1)" stroke-width="1.5" filter="url(#glow-s1)"/>
+        <path d="M110 38 L178 68 L178 130 C178 170 148 208 110 224 C72 208 42 170 42 130 L42 68 Z"
+              fill="none" stroke="url(#sg1)" stroke-width="1" opacity=".5"/>
+        <line x1="22" y1="100" x2="198" y2="100" stroke="#0ea5e9" stroke-width=".8" opacity=".25">
+          <animate attributeName="opacity" values=".25;.5;.25" dur="3s" repeatCount="indefinite"/>
+        </line>
+        <line x1="22" y1="130" x2="198" y2="130" stroke="#0ea5e9" stroke-width=".8" opacity=".15"/>
+        <line x1="22" y1="160" x2="198" y2="160" stroke="#0ea5e9" stroke-width=".8" opacity=".25">
+          <animate attributeName="opacity" values=".25;.5;.25" dur="3s" begin="1s" repeatCount="indefinite"/>
+        </line>
+        <text x="110" y="145" fill="url(#sg1)" font-family="sans-serif" font-size="40" text-anchor="middle" font-weight="700" opacity=".6">AI</text>
+        <polygon points="22,50 50,50 22,78" fill="rgba(14,165,233,.2)"/>
+        <polygon points="198,50 170,50 198,78" fill="rgba(124,58,237,.2)"/>
+      </svg>
+
+      <div class="cover-stack">
+        <span class="chip chip-a">WAF</span>
+        <span class="chip chip-g">QuickText</span>
+        <span class="chip chip-p">Smart checker</span>
+        <span class="chip chip-c">LIME XAI</span>
+        <span class="chip chip-w">HITL</span>
+        <span class="chip chip-w">Load new version</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     S2 · PROBLEM STATEMENT
+═══════════════════════════════════════ -->
+<div class="slide accent-amber" id="s2" data-baton="⚠️">
+  <div class="s-eyebrow"><span></span>01 · The Problem</div>
+  <div class="s-title text-main-title">The Problem</div>
+  <div class="s-sub text-sub-title">Why Traditional Security Tools Fail Against AI Attacks?</div>
+
+  <div class="cols stagger">
+    <!-- left col -->
+    <div class="col col-6">
+      <div class="card card-r">
+        <div class="card-title ct-r">⚠ Security Threats Today</div>
+        <ul class="blist">
+          <li>Phishing & Scams increasingly <strong>sophisticated</strong> — using real language to trick people</li>
+          <li>Social Engineering bypasses rule-based filters <strong>easily</strong></li>
+          <li>Attackers use <strong>semantics</strong>, not just bad links or viruses</li>
+        </ul>
+
+        <div style="margin-top:16px;padding:12px 14px;background:rgba(220,38,38,.08);border-radius:8px;border-left:2px solid rgba(220,38,38,.5)">
+          <div class="body-text" style="font-size: 16px">
+            <strong>Core Challenge:</strong> Deep Learning is accurate but causes <strong>high latency</strong> — not suitable for real-time gateway.
+          </div>
+        </div>
+      </div>
+
+      <!-- APWG Phishing Chart -->
+      <div class="card card-c card-fill" style="padding: 14px 16px; display: flex; flex-direction: column;">
+        <div style="display:flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px;">
+          <div>
+            <div style="font-size:10px; font-family:'JetBrains Mono', monospace; color:var(--cyan); text-transform:uppercase; letter-spacing:1px; margin-bottom:2px">Real data from APWG</div>
+            <div style="font-size: 16px; font-weight:600; color:#e8f4fd;">Growth: <span style="color:#f87171">+61.7%</span></div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:9.5px; color:var(--muted); margin-bottom:2px">Peak (2025)</div>
+            <div class="mono" style="font-size:16px; font-weight:700; line-height:1; color:var(--cyan2);">3.80M</div>
+          </div>
+        </div>
+
+        <!-- The flex bars container MUST have a flex:1 (to fill remaining card space) -->
+        <div style="display:flex; align-items:flex-end; gap:10px; flex:1; min-height:80px; padding:0 4px;">
+          <!-- 2022 -->
+          <div style="flex:1; height: 100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:4px;">
+            <span class="mono" style="font-size:10px; color:rgba(224,240,255,.7)">2.35M</span>
+            <div style="width:100%; height: 61.8%; background:rgba(14,165,233,.12); border-radius:4px 4px 0 0; border-top:2px solid rgba(14,165,233,.5);"></div>
+            <span style="font-size:10px; color:var(--muted)">2022</span>
+          </div>
+          <!-- 2023 -->
+          <div style="flex:1; height: 100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:4px;">
+            <span class="mono" style="font-size:10px; color:rgba(224,240,255,.7)">3.20M</span>
+            <div style="width:100%; height: 84.2%; background:rgba(14,165,233,.12); border-radius:4px 4px 0 0; border-top:2px solid rgba(14,165,233,.5);"></div>
+            <span style="font-size:10px; color:var(--muted)">2023</span>
+          </div>
+          <!-- 2024 -->
+          <div style="flex:1; height: 100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:4px;">
+            <span class="mono" style="font-size:10px; color:rgba(224,240,255,.7)">3.76M</span>
+            <div style="width:100%; height: 98.9%; background:rgba(14,165,233,.12); border-radius:4px 4px 0 0; border-top:2px solid rgba(14,165,233,.5);"></div>
+            <span style="font-size:10px; color:var(--muted)">2024</span>
+          </div>
+          <!-- 2025 -->
+          <div style="flex:1; height: 100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:4px;">
+            <span class="mono" style="font-size:11px; font-weight:700; color:#f87171">3.80M</span>
+            <div style="width:100%; height: 100%; background:rgba(220,38,38,.12); border-radius:4px 4px 0 0; border-top:2px solid #f87171; box-shadow: 0 -4px 12px rgba(220,38,38,.2);"></div>
+            <span style="font-size:10px; font-weight:600; color:#f87171">2025</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- right col -->
+    <div class="col col-fill">
+      <div class="card card-a card-fill" style="display:flex; flex-direction:column;">
+        <div class="card-title ct-a">WAF Traditional Limitations</div>
+        <div style="display:flex;flex-direction:column;gap:16px; flex:1; justify-content:center; padding-bottom: 8px;">
+          <div style="display:flex;gap:14px;align-items:flex-start">
+            <div style="width:34px;height:34px;border-radius:7px;background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px">📋</div>
+            <div>
+              <div style="font-size: 18px;font-weight:600;color:#e8f4fd;margin-bottom:4px">Rule-based &amp; Blacklist</div>
+              <div style="font-size: 16px;color:var(--muted);line-height:1.5">Old rules can't catch new attacks</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:14px;align-items:flex-start">
+            <div style="width:34px;height:34px;border-radius:7px;background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px">🔓</div>
+            <div>
+              <div style="font-size: 18px;font-weight:600;color:#e8f4fd;margin-bottom:4px">Zero-day Blind Spot</div>
+              <div style="font-size: 16px;color:var(--muted);line-height:1.5">Can't detect new attack types (Zero-day)</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:14px;align-items:flex-start">
+            <div style="width:34px;height:34px;border-radius:7px;background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px">🧠</div>
+            <div>
+              <div style="font-size: 18px;font-weight:600;color:#e8f4fd;margin-bottom:4px">Can't understand meaning</div>
+              <div style="font-size: 16px;color:var(--muted);line-height:1.5">Easily bypassed by obfuscation: <span class="mono" style="color:var(--cyan2)">"cl1ck"</span> instead of <span class="mono" style="color:var(--cyan2)">"click"</span></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:14px;align-items:flex-start">
+            <div style="width:34px;height:34px;border-radius:7px;background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:15px">⚡</div>
+            <div>
+              <div style="font-size: 18px;font-weight:600;color:#e8f4fd;margin-bottom:4px">No Continuous Learning</div>
+              <div style="font-size: 16px;color:var(--muted);line-height:1.5">Can't learn and improve over time</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     S3 · GOALS & CONTRIBUTIONS
+═══════════════════════════════════════ -->
+<div class="slide accent-cyan" id="s3" data-baton="⚡">
+  <div class="s-eyebrow"><span></span>02 · Objectives &amp; Contributions</div>
+  <div class="s-title text-main-title">Goals &amp; Contributions</div>
+  <div class="s-sub text-sub-title">Speed and Accuracy Together</div>
+
+  <div class="rows stagger">
+    <!-- goal banner -->
+    <div style="padding:16px 20px;background:linear-gradient(135deg,rgba(14,165,233,.08),rgba(124,58,237,.12));border:1px solid rgba(14,165,233,.2);border-radius:10px">
+      <div style="font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:2px;color:var(--cyan2);margin-bottom:6px;text-transform:uppercase">Main goals</div>
+      <div style="font-size:15.5px;font-weight:600;color:#e8f4fd;line-height:1.5">
+        Build architecture <span style="color:var(--cyan2)">Multiple layers of protection</span> — block fast outside, understand meaning inside, keep learning.
+      </div>
+    </div>
+
+    <div class="cols" style="flex:1">
+      <div class="card card-c card-fill">
+        <div style="font-size:28px;margin-bottom:8px">⚡</div>
+        <div class="card-title ct-c">Contribution 01</div>
+        <div style="font-size: 16px;font-weight:600;color:#e8f4fd;margin-bottom:6px">Multi-Layer AI Pipeline</div>
+        <div class="body-text">
+          <strong>WAF + QuickText</strong> (outer loop, ms-latency) kết hợp <strong>Smart checker</strong> (inner loop, semantic) into different levels — quick and correct.
+        </div>
+      </div>
+      <div class="card card-p card-fill">
+        <div style="font-size:28px;margin-bottom:8px">🔍</div>
+        <div class="card-title ct-p">Contribution 02</div>
+        <div style="font-size: 16px;font-weight:600;color:#e8f4fd;margin-bottom:6px">Explainable AI · LIME</div>
+        <div class="body-text">
+          Not just Yes/No decision — <strong>LIME shows</strong> trick words. Decision <em>transparent</em>.
+        </div>
+      </div>
+      <div class="card card-g card-fill">
+        <div style="font-size:28px;margin-bottom:8px">🔄</div>
+        <div class="card-title ct-g">Contribution 03</div>
+        <div style="font-size: 16px;font-weight:600;color:#e8f4fd;margin-bottom:6px">HITL + Load new version</div>
+        <div class="body-text">
+          <strong>Human-In-The-Loop</strong> check unclear cases. Update system &amp; <strong>Load new version</strong> new version — no stop time.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════
+     S4 · ARCHITECTURE HỆ THỐNG
+═══════════════════════════════════════ -->
+<div class="slide accent-cyan" id="s4" data-baton="🏗️">
+  <div class="s-eyebrow"><span></span>03 · System Architecture</div>
+  <div class="s-title text-main-title">How it works</div>
+  <div class="s-sub text-sub-title">Architecture: Request → Check → Smart Check → Save</div>
+
+<style>
+.tree-container { position: relative; width: 100%; height: 780px; margin-top: 10px; }
+.tree-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+
+.t-node, .l-node {
+    position: absolute; height: 80px; box-sizing: border-box;
+    display: flex; flex-direction: column; justify-content: center;
+    z-index: 5;
+}
+.l-node {
+    left: 0; width: 140px; font-size: 15px; font-weight: 700; letter-spacing: 2px;
+}
+.l-node::after {
+    content: ""; position: absolute; left: 130px; top: 50%; width: 1400px; height: 1px;
+    background: rgba(255,255,255,0.06); z-index: -1; 
+}
+.t-node {
+    border: 1.5px solid; border-radius: 12px; padding: 6px 10px; text-align: center;
+    backdrop-filter: blur(8px);
+}
+.t-title { font-size: 15.5px; font-weight: 700; color: #fff; margin-bottom: 3px; display: flex; align-items: center; justify-content: center; gap: 8px; letter-spacing: 0.5px;}
+.t-sub { font-size: 11px; color: rgba(255,255,255,0.65); font-weight: 400; line-height: 1.35; padding: 0 5px;}
+
+.t-node.cyan { border-color: #0ea5e9; background: linear-gradient(180deg, rgba(14,165,233,0.15) 0%, rgba(14,165,233,0.02) 100%); box-shadow: 0 0 12px rgba(14,165,233,0.25); }
+.t-node.purple { border-color: #a855f7; background: linear-gradient(180deg, rgba(168,85,247,0.15) 0%, rgba(168,85,247,0.02) 100%); box-shadow: 0 0 12px rgba(168,85,247,0.25); }
+.t-node.green { border-color: #10b981; background: linear-gradient(180deg, rgba(16,185,129,0.15) 0%, rgba(16,185,129,0.02) 100%); box-shadow: 0 0 12px rgba(16,185,129,0.25); }
+.t-node.orange { border-color: #f59e0b; background: linear-gradient(180deg, rgba(245,158,11,0.15) 0%, rgba(245,158,11,0.02) 100%); box-shadow: 0 0 12px rgba(245,158,11,0.25); }
+.t-node.gray { border-color: #475569; background: linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.02) 100%); }
+.t-node.red { border-color: #ef4444; background: linear-gradient(180deg, rgba(239,68,68,0.2) 0%, rgba(239,68,68,0.02) 100%); box-shadow: 0 0 15px rgba(239,68,68,0.4); }
+
+.retrain-text { position: absolute; left: 1300px; top: 385px; color: #f59e0b; font-size: 11px; font-weight: 700; width: 110px; line-height: 1.4; text-align:left; z-index:5;}
+</style>
+
+  <div class="tree-container">
+    <!-- LEGEND -->
+    <div class="l-node" style="top: 60px; color: #0ea5e9">CLIENT</div>
+    <div class="l-node" style="top: 180px; color: #a855f7">SECURITY</div>
+    <div class="l-node" style="top: 300px; color: #0ea5e9">GATEWAY</div>
+    <div class="l-node" style="top: 420px; color: #10b981">AI LAYER</div>
+    <div class="l-node" style="top: 540px; color: #0ea5e9">XAI</div>
+    <div class="l-node" style="top: 660px; color: #94a3b8">STORAGE</div>
+    
+    <svg class="tree-svg">
+       <defs>
+         <marker id="arrow-cyan" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#0ea5e9"/></marker>
+         <marker id="arrow-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#a855f7"/></marker>
+         <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981"/></marker>
+         <marker id="arrow-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#f59e0b"/></marker>
+         <marker id="arrow-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(255,255,255,0.4)"/></marker>
+         <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#ef4444"/></marker>
+       </defs>
+       
+       <!-- 1. Client to WAF -->
+       <line x1="780" y1="140" x2="780" y2="180" stroke="#0ea5e9" stroke-width="2" marker-end="url(#arrow-cyan)"/>
+       
+       <!-- 2. WAF to Gateway -->
+       <line x1="780" y1="260" x2="780" y2="300" stroke="#a855f7" stroke-width="2" marker-end="url(#arrow-purple)"/>
+       
+       <!-- 3. Gateway to AI Layer -->
+       <path d="M 760 380 L 760 400 L 440 400 L 440 420" fill="none" stroke="#10b981" stroke-width="2" marker-end="url(#arrow-green)"/>
+       <line x1="780" y1="380" x2="780" y2="420" stroke="#a855f7" stroke-width="2" marker-end="url(#arrow-purple)"/>
+       <path d="M 800 380 L 800 400 L 1120 400 L 1120 420" fill="none" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrow-orange)"/>
+       
+       <!-- 4. AI to XAI & Storage -->
+       <path d="M 440 500 L 440 520 L 740 520 L 740 540" fill="none" stroke="#10b981" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrow-green)"/>
+       <line x1="780" y1="500" x2="780" y2="540" stroke="#0ea5e9" stroke-width="2" marker-end="url(#arrow-cyan)"/>
+       <line x1="1120" y1="500" x2="1120" y2="660" stroke="#f59e0b" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrow-orange)"/>
+       
+       <!-- 5. LIME XAI to Storage & Verdict -->
+       <path d="M 760 620 L 760 640 L 440 640 L 440 660" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-dasharray="4,4" marker-end="url(#arrow-gray)"/>
+       <line x1="780" y1="620" x2="780" y2="660" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-dasharray="4,4" marker-end="url(#arrow-gray)"/>
+       <path d="M 800 620 L 800 640 L 1380 640 L 1380 660" fill="none" stroke="#ef4444" stroke-width="2" stroke-dasharray="5,3" marker-end="url(#arrow-red)"/>
+       
+       <!-- 6. Learn again Arc -->
+       <path d="M 1280 460 C 1380 460, 1380 340, 1100 340" fill="none" stroke="#f59e0b" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrow-orange)"/>
+    </svg>
+
+    <!-- NODES -->
+    <!-- R1 -->
+    <div class="t-node cyan" style="width: 440px; top: 60px; left: 560px;">
+        <div class="t-title">INCOMING REQUEST</div>
+        <div class="t-sub">Browser Extension · Chrome MV3 · Content Script</div>
+    </div>
+    
+    <!-- R2 -->
+    <div class="t-node purple" style="width: 440px; top: 180px; left: 560px;">
+        <div class="t-title"><span style="color:#d946ef">⬡</span> OWASP WAF</div>
+        <div class="t-sub">CRS v4.0 · SQLi / XSS Block · Header Inspection</div>
+    </div>
+    
+    <!-- R3 -->
+    <div class="t-node cyan" style="width: 640px; top: 300px; left: 460px;">
+        <div class="t-title"><span style="color:#38bdf8">⚡</span> Gateway Orchestrator · QuickAPI :8000</div>
+        <div class="t-sub">Rate Limit · Token Bucket · 60 req/min · Route & Aggregate</div>
+    </div>
+    
+    <div class="retrain-text">RETRAIN<br><span style="font-size: 9px; opacity:0.7; font-weight:400;">HOT-RELOAD</span></div>
+    
+    <!-- R4 -->
+    <div class="t-node green" style="width: 320px; top: 420px; left: 280px;">
+        <div class="t-title"><span style="color:#f59e0b">⚡</span> QuickText · :5001</div>
+        <div class="t-sub">N-gram 3-8 · 0.03ms · 98.5% acc</div>
+    </div>
+    <div class="t-node purple" style="width: 320px; top: 420px; left: 620px;">
+        <div class="t-title"><span style="color:#f472b6">🧠</span> Smart checker · :5002</div>
+        <div class="t-sub">Self-Attention · GPU T4 · Seq 512</div>
+    </div>
+    <div class="t-node orange" style="width: 320px; top: 420px; left: 960px;">
+        <div class="t-title"><span style="color:#fcd34d">👤</span> Admin Dashboard</div>
+        <div class="t-sub">React · Zustand · SIEM view</div>
+    </div>
+    
+    <!-- R5 -->
+    <div class="t-node cyan" style="width: 440px; top: 540px; left: 560px;">
+        <div class="t-title"><span style="color:#38bdf8">🔍</span> LIME XAI · Explainability</div>
+        <div class="t-sub">Feature Importance · Highlight keywords · Confidence</div>
+    </div>
+    
+    <!-- R6 -->
+    <div class="t-node gray" style="width: 320px; top: 660px; left: 280px;">
+        <div class="t-title">🗄️ SQLite / DB</div>
+        <div class="t-sub">Scan Logs · HITL queue</div>
+    </div>
+    <div class="t-node gray" style="width: 320px; top: 660px; left: 620px;">
+        <div class="t-title"><span style="color:#fcd34d">⚡</span> TTLCache</div>
+        <div class="t-sub">High-speed · ~18MB RAM</div>
+    </div>
+    <div class="t-node green" style="width: 320px; top: 660px; left: 960px;">
+        <div class="t-title"><span style="color:#d97706">📦</span> Model Store</div>
+        <div class="t-sub">Versioned · Load new version</div>
+    </div>
+    
+    <!-- Verdict Output -->
+    <div class="t-node red" style="width: 160px; top: 660px; left: 1300px;">
+        <div class="t-title" style="color: #ef4444; font-size: 14px;"><span style="color:#ef4444">🚨</span> VERDICT</div>
+        <div class="t-sub" style="font-size: 10px;">ALLOW - BLOCK</div>
+    </div>
+  </div>
+</div>
+<!-- /strip --><!-- ═══════════════════════════════════════
+     S5 · WAF & GATEWAY
+═══════════════════════════════════════ -->
+<div class="slide accent-purple" id="s5" data-baton="🛡️">
+  <div class="s-eyebrow"><span></span>04 · Defense Layer 1</div>
+  <div class="s-title text-main-title">Lớp phòng thủ 1: WAF &amp; Gateway</div>
+  <div class="s-sub text-sub-title">OWASP CRS v4.0 · Token Bucket Rate Limiting · Anti-DDoS</div>
+
+  <div class="cols stagger">
+    <!-- left -->
+    <div class="col col-5">
+      <div class="card card-p card-fill" style="display:flex; flex-direction:column; justify-content:flex-start; padding-top:24px;">
+        <div class="card-title ct-p">Web Application Firewall</div>
+        <ul class="blist" style="margin-bottom: 24px; gap:16px;">
+          <li style="font-size: 18px; line-height:1.6;">Rules <strong>OWASP CRS v4.0</strong> — standard</li>
+          <li style="font-size: 18px; line-height:1.6;">Block <strong>SQL Injection</strong> &amp; <strong>XSS</strong> at the door</li>
+          <li style="font-size: 18px; line-height:1.6;">Check everything before AI</li>
+        </ul>
+      </div>
+
+      <div class="card card-a card-fill" style="display:flex; flex-direction:column; justify-content:flex-start; padding-top:24px;">
+        <div class="card-title ct-a">Rate Limiting · Anti-DDoS</div>
+        <ul class="blist" style="gap:16px;">
+          <li style="font-size: 18px; line-height:1.6;">Algorithm <strong>Token Bucket</strong> (SlowAPI)</li>
+          <li style="font-size: 18px; line-height:1.6;">Exact limit <strong>60 req/min</strong> (1 token/second)</li>
+          <li style="font-size: 18px; line-height:1.6;">Return <strong>HTTP 429</strong> when exceeded</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- right: token bucket diagram + logs -->
+    <div class="col col-fill">
+      <div class="card card-fill" style="display:flex;flex-direction:column;gap:12px">
+        <div class="card-title" style="color:rgba(224,240,255,.8)">Token Bucket Mechanism</div>
+        <div style="flex:1; display:flex; align-items:center; justify-content:center;">
+          <svg viewBox="0 0 380 200" width="100%" height="100%" style="max-height:300px; overflow:visible;">
+          <defs>
+            <linearGradient id="bucket-fill" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#fbbf24" stop-opacity=".5"/>
+              <stop offset="100%" stop-color="#d97706" stop-opacity=".3"/>
+            </linearGradient>
+            <marker id="a" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L7,3 Z" fill="#4a6070"/>
+            </marker>
+            <marker id="ag" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L7,3 Z" fill="#34d399"/>
+            </marker>
+            <marker id="ar" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L7,3 Z" fill="#f87171"/>
+            </marker>
+            <filter id="glow-bucket">
+              <feGaussianBlur stdDeviation="5" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <!-- bucket -->
+          <rect x="130" y="55" width="120" height="130" rx="8" fill="#0f1923" stroke="rgba(251,191,36,.6)" stroke-width="2" filter="url(#glow-bucket)"/>
+          <rect x="130" y="75" width="120" height="110" rx="8" fill="url(#bucket-fill)"/>
+          
+          <text x="190" y="130" fill="#fbbf24" font-family="JetBrains Mono" font-size="32" text-anchor="middle" font-weight="700">60</text>
+          <text x="190" y="150" fill="#92400e" font-family="Space Grotesk" font-size="13" text-anchor="middle">TOKENS</text>
+          
+          <!-- refill top -->
+          <text x="190" y="15" fill="#34d399" font-family="JetBrains Mono" font-size="11" text-anchor="middle">+1 token / sec</text>
+          <line x1="190" y1="22" x2="190" y2="50" stroke="#34d399" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#ag)"/>
+          
+          <!-- request left -->
+          <text x="50" y="105" fill="#7dd3fc" font-family="Space Grotesk" font-size="12" font-weight="600" text-anchor="middle">Request</text>
+          <line x1="85" y1="105" x2="125" y2="105" stroke="#4a6070" stroke-width="2" marker-end="url(#a)"/>
+          
+          <!-- allow -->
+          <rect x="270" y="75" width="70" height="24" rx="4" fill="rgba(52,211,153,.1)" stroke="rgba(52,211,153,.3)"/>
+          <text x="305" y="91" fill="#34d399" font-family="JetBrains Mono" font-size="11" font-weight="600" text-anchor="middle">✓ ALLOW</text>
+          <text x="305" y="112" fill="#4a6070" font-family="JetBrains Mono" font-size="9" text-anchor="middle">token −1</text>
+          <line x1="250" y1="87" x2="265" y2="87" stroke="#34d399" stroke-width="2" marker-end="url(#ag)"/>
+          
+          <!-- reject -->
+          <rect x="270" y="125" width="70" height="24" rx="4" fill="rgba(248,113,113,.1)" stroke="rgba(248,113,113,.3)"/>
+          <text x="305" y="141" fill="#f87171" font-family="JetBrains Mono" font-size="11" font-weight="600" text-anchor="middle">⚠ 429</text>
+          <text x="305" y="162" fill="#4a6070" font-family="Space Grotesk" font-size="10" text-anchor="middle">Too Many</text>
+          <line x1="250" y1="137" x2="265" y2="137" stroke="#f87171" stroke-width="2" stroke-dasharray="3 2" marker-end="url(#ar)"/>
+        </svg>
+        </div>
+      </div>
+
+      <!-- Live WAF Logs Mock instead of img-slot -->
+      <div class="card card-fill" style="display:flex; flex-direction:column; justify-content:flex-start; padding:24px 24px 20px 24px; background:rgba(0,0,0,.25); border:1px solid rgba(255,255,255,.05); border-left:2px solid rgba(14,165,233,.6);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px;">
+          <div style="font-size:12px; font-family:'JetBrains Mono', monospace; color:var(--cyan); text-transform:uppercase; font-weight:600; letter-spacing:1px;">WAF Event Logs</div>
+          <div style="display:flex; align-items:center; gap:6px; font-size:11px; font-family:'JetBrains Mono',monospace; padding:4px 10px; background:rgba(5,150,105,.15); color:var(--green2); border-radius:12px; border:1px solid rgba(5,150,105,.3);">
+            <div style="width:6px; height:6px; border-radius:50%; background:var(--green2); box-shadow:0 0 6px var(--green2);"></div> Live
+          </div>
+        </div>
+        <div class="waf-log-grid" style="margin: 0; padding: 0;">
+          <div class="waf-log-time">10:45:01</div>
+          <div class="waf-log-code danger">[403]</div>
+          <div class="waf-log-ip">192.168.1.104</div>
+          <div class="waf-log-msg">XSS Payload blocked</div>
+          
+          <div class="waf-log-time">10:44:59</div>
+          <div class="waf-log-code warning">[429]</div>
+          <div class="waf-log-ip">203.0.113.42</div>
+          <div class="waf-log-msg">Rate Limit Exceeded</div>
+          
+          <div class="waf-log-time">10:44:50</div>
+          <div class="waf-log-code success">[200]</div>
+          <div class="waf-log-ip">198.51.100.7</div>
+          <div class="waf-log-msg">Request allowed</div>
+        </div>
+
+        <!-- Mock Terminal for WAF Block -->
+        <div style="display:flex; flex-direction:column; justify-content:flex-start; background:#0b1117; border:1px solid rgba(124,58,237,.3); border-radius:8px; padding:10px 16px; margin-top:12px; gap:8px;">
+          <div class="mono" style="font-size: 14px; line-height:1.4;">
+            <div style="color:var(--purple2); margin-bottom:8px; font-weight:700; padding:3px 7px; background:rgba(124,58,237,.15); border-radius:4px; display:inline-block; font-size:12px; letter-spacing:1px;">[WAF_ENGINE] INTERCEPT</div>
+            <div style="color:rgba(224,240,255,.8); margin-bottom:6px;">GET <span style="color:#e8f4fd;">/login?user=' OR 1=1--</span></div>
+            <div style="margin: 6px 0; border-bottom: 1px dashed rgba(124,58,237,.2);"></div>
+            <div style="color:#f87171; margin-bottom:4px; padding:2px 6px;">» [CRS_942100] SQL Injection Detected</div>
+            <div style="color:#f87171; margin-bottom:6px; padding:2px 6px;">» [CRS_942120] SQLi Obfuscation</div>
+            <div style="color:rgba(224,240,255,.8); margin-top:6px;">Action: <span style="color:#f87171; background:rgba(220,38,38,.3); padding:3px 8px; border-radius:4px; font-weight:600; display:inline-block;">DROP (403)</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     S6 · FASTTEXT
+═══════════════════════════════════════ -->
+<div class="slide accent-green" id="s6" data-baton="⚡">
+  <div class="s-eyebrow"><span></span>05 · Defense Layer 2</div>
+  <div class="s-title text-main-title">Layer 2: Quick check</div>
+  <div class="s-sub text-sub-title">High-speed AI Scan — Heuristic shield with millisecond speed</div>
+
+  <div class="cols stagger">
+    <div class="col col-4">
+      <div class="card card-g card-fill" style="display:flex; flex-direction:column; justify-content:center;">
+        <div class="card-title ct-g">Sub-word N-gram</div>
+        <ul class="blist" style="gap:16px;">
+          <li style="font-size: 18px; line-height:1.7;">Split words into <strong>n-gram (3–6 characters)</strong></li>
+          <li style="font-size: 18px; line-height:1.7;">Xử lý tốt typo cố ý &amp; from OOV</li>
+          <li style="font-size: 18px; line-height:1.7;">Latency <strong>milliseconds</strong> — real-time gateway</li>
+        </ul>
+      </div>
+      <div class="card card-fill" style="display:flex; flex-direction:column; justify-content:center;">
+        <div class="card-title" style="color:rgba(224,240,255,.75)">Routing Logic</div>
+        <div style="display:flex;flex-direction:column;gap:12px;margin-top:8px">
+          <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:rgba(5,150,105,.1);border-radius:8px;border:1px solid rgba(5,150,105,.2)">
+            <span style="color:var(--green2); font-size:16px;">✓</span>
+            <span style="font-size: 18px;color:rgba(224,240,255,.7)">Confidence <strong style="color:#e8f4fd">&gt;95%</strong> safe → <strong style="color:var(--green2)">Bypass</strong></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:rgba(124,58,237,.1);border-radius:8px;border:1px solid rgba(124,58,237,.2)">
+            <span style="color:var(--purple2); font-size:16px;">⟶</span>
+            <span style="font-size: 18px;color:rgba(224,240,255,.7)">Maybe bad → <strong style="color:var(--purple2)">Smart checker</strong></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col col-fill">
+      <!-- N-gram visualization -->
+      <div class="card card-g card-fill" style="display:flex; flex-direction:column;">
+        <div class="card-title ct-g">QuickText N-gram Visualization</div>
+        <div style="flex:1; display:flex; align-items:center; justify-content:center;">
+          <svg viewBox="0 0 400 200" width="100%" height="100%" style="max-height:300px">
+          <!-- input -->
+          <rect x="130" y="8" width="140" height="36" rx="6" fill="#0f1923" stroke="rgba(52,211,153,.5)" stroke-width="1.5"/>
+          <text x="200" y="31" fill="#34d399" font-family="JetBrains Mono" font-size="16" text-anchor="middle" font-weight="700">"cl1ck"</text>
+          <text x="200" y="58" fill="#4a6070" font-family="Inter" font-size="9" text-anchor="middle">Input: intentional typo of "click"</text>
+
+          <!-- n-grams -->
+          <text x="200" y="76" fill="#4a6070" font-family="Inter" font-size="9" text-anchor="middle">3-gram tokenization ↓</text>
+          <rect x="10"  y="84" width="76" height="24" rx="5" fill="rgba(52,211,153,.1)" stroke="rgba(52,211,153,.35)"/>
+          <text x="48"  y="100" fill="#34d399" font-family="JetBrains Mono" font-size="11" text-anchor="middle">&lt;cl1</text>
+          <rect x="96"  y="84" width="76" height="24" rx="5" fill="rgba(52,211,153,.1)" stroke="rgba(52,211,153,.35)"/>
+          <text x="134" y="100" fill="#34d399" font-family="JetBrains Mono" font-size="11" text-anchor="middle">l1c</text>
+          <rect x="182" y="84" width="76" height="24" rx="5" fill="rgba(52,211,153,.1)" stroke="rgba(52,211,153,.35)"/>
+          <text x="220" y="100" fill="#34d399" font-family="JetBrains Mono" font-size="11" text-anchor="middle">1ck</text>
+          <rect x="268" y="84" width="76" height="24" rx="5" fill="rgba(52,211,153,.1)" stroke="rgba(52,211,153,.35)"/>
+          <text x="306" y="100" fill="#34d399" font-family="JetBrains Mono" font-size="11" text-anchor="middle">ck&gt;</text>
+
+          <!-- lines to vector -->
+          <line x1="48"  y1="110" x2="170" y2="136" stroke="#2d4059" stroke-width="1"/>
+          <line x1="134" y1="110" x2="185" y2="136" stroke="#2d4059" stroke-width="1"/>
+          <line x1="220" y1="110" x2="210" y2="136" stroke="#2d4059" stroke-width="1"/>
+          <line x1="306" y1="110" x2="230" y2="136" stroke="#2d4059" stroke-width="1"/>
+
+          <!-- vector -->
+          <rect x="130" y="138" width="140" height="28" rx="6" fill="#0f1923" stroke="rgba(14,165,233,.4)" stroke-width="1.5"/>
+          <text x="200" y="151" fill="#7dd3fc" font-family="JetBrains Mono" font-size="8" text-anchor="middle">Word Vector</text>
+          <text x="200" y="162" fill="#4a6070" font-family="JetBrains Mono" font-size="7" text-anchor="middle">[0.82, −0.14, 0.67, ...]</text>
+
+          <!-- verdict -->
+          <rect x="140" y="176" width="120" height="20" rx="4" fill="rgba(220,38,38,.15)" stroke="rgba(220,38,38,.3)"/>
+          <text x="200" y="190" fill="#f87171" font-family="Inter" font-size="10" text-anchor="middle" font-weight="600">⚠ SUSPICIOUS → Smart checker</text>
+        </svg>
+        </div>
+      </div>
+
+      <!-- Performance & Efficiency UI Recreated in HTML -->
+      <div class="card card-fill" style="background:#1e1e1e; padding:18px 24px; border:1px solid rgba(255,255,255,0.05); display:flex; flex-direction:column; justify-content:center;">
+        <div style="text-align:center; color:#a3a3a3; font-size: 16px; font-weight:600; letter-spacing:0.5px; margin-bottom:28px;">
+          QuickText — Performance &amp; Efficiency
+        </div>
+        <div style="display:flex; flex-direction:column; gap:22px; font-family:'JetBrains Mono',monospace;">
+          <!-- ACCURACY -->
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div style="font-size:11px; color:#888; width:80px; text-align:right; font-weight:700; font-family:'Inter',sans-serif;">ACCURACY</div>
+            <div style="flex:1; height:10px; background:rgba(255,255,255,0.04); border-radius:5px;">
+              <div style="width:98.5%; height:100%; background:#70dfac; border-radius:5px; box-shadow:0 0 8px rgba(112,223,172,0.3);"></div>
+            </div>
+            <div style="width:85px; text-align:right; font-size:15px; color:#70dfac; font-weight:600;">98.53 <span style="font-size:11px; color:#888; margin-left:2px; font-family:'Inter',sans-serif;">%</span></div>
+          </div>
+          <!-- LATENCY -->
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div style="font-size:11px; color:#888; width:80px; text-align:right; font-weight:700; font-family:'Inter',sans-serif;">LATENCY</div>
+            <div style="flex:1; height:10px; background:rgba(255,255,255,0.04); border-radius:5px;">
+              <div style="width:96%; height:100%; background:#8dbff2; border-radius:5px; box-shadow:0 0 8px rgba(141,191,242,0.3);"></div>
+            </div>
+            <div style="width:85px; text-align:right; font-size:15px; color:#8dbff2; font-weight:600;">0.03 <span style="font-size:11px; color:#888; margin-left:2px; font-family:'Inter',sans-serif;">ms</span></div>
+          </div>
+          <!-- THROUGHPUT -->
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div style="font-size:11px; color:#888; width:80px; text-align:right; font-weight:700; font-family:'Inter',sans-serif;">THROUGHPUT</div>
+            <div style="flex:1; height:10px; background:rgba(255,255,255,0.04); border-radius:5px;">
+              <div style="width:92%; height:100%; background:#b6a6e9; border-radius:5px; box-shadow:0 0 8px rgba(182,166,233,0.3);"></div>
+            </div>
+            <div style="width:85px; text-align:right; font-size:15px; color:#b6a6e9; font-weight:600;">>30k <span style="font-size:11px; color:#888; margin-left:2px; font-family:'Inter',sans-serif;">req/s</span></div>
+          </div>
+          <!-- RAM USAGE -->
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div style="font-size:11px; color:#888; width:80px; text-align:right; font-weight:700; font-family:'Inter',sans-serif;">RAM USAGE</div>
+            <div style="flex:1; height:10px; background:rgba(255,255,255,0.04); border-radius:5px;">
+              <div style="width:94%; height:100%; background:#f29a7c; border-radius:5px; box-shadow:0 0 8px rgba(242,154,124,0.3);"></div>
+            </div>
+            <div style="width:85px; text-align:right; font-size:15px; color:#f29a7c; font-weight:600;">~18 <span style="font-size:11px; color:#888; margin-left:2px; font-family:'Inter',sans-serif;">MB</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     S7 · DISTILBERT + LIME
+═══════════════════════════════════════ -->
+<div class="slide accent-purple" id="s7" data-baton="🧠">
+  <div class="s-eyebrow"><span></span>06 · Defense Layer 3</div>
+  <div class="s-title text-main-title">Layer 3: Smart understanding</div>
+  <div class="s-sub text-sub-title">Semantic NLP · Transformer Self-Attention · Explainable AI</div>
+
+  <div class="cols stagger">
+    <div class="col col-4">
+      <div class="card card-p card-fill" style="display:flex; flex-direction:column; justify-content:center;">
+        <div class="card-title ct-p">Smart checker Transformer</div>
+        <ul class="blist" style="gap:16px;">
+          <li style="font-size: 18px; line-height:1.6;"><strong>Self-Attention</strong> — understand global context, not just individual words</li>
+          <li style="font-size: 18px; line-height:1.6;">Optimize <strong>GPU T4</strong> — giữ &gt;95% sức mạnh original BERT</li>
+          <li style="font-size: 18px; line-height:1.6;">Max Sequence Length <strong>512 tokens</strong> · All at once <strong>16</strong> · LR <strong>1e-5</strong></li>
+          <li style="font-size: 18px; line-height:1.6;">Catches tricky text</li>
+        </ul>
+      </div>
+      <div class="card card-c card-fill" style="display:flex; flex-direction:column; justify-content:center;">
+        <div class="card-title ct-c">LIME · Explainable AI</div>
+        <ul class="blist" style="gap:16px;">
+          <li style="font-size: 18px; line-height:1.6;">Highlight <strong>chính xác</strong> manipulation words</li>
+          <li style="font-size: 18px; line-height:1.6;">Admin &amp; user hiểu <strong>reason</strong> system blocks</li>
+          <li style="font-size: 18px; line-height:1.6;">Not just decision <strong>Yes / No</strong></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="col col-fill">
+      <div class="card card-p card-fill" style="display:flex; flex-direction:column; justify-content:center;">
+        <div class="card-title ct-p" style="margin-bottom:14px">LIME Explanation Output</div>
+        <div class="lime-text" style="font-size:16px; margin-bottom:20px;">
+          You won <span class="hl-low">a prize</span> 1 billion VND.
+          <span class="hl-med">Click now</span> to claim reward —
+          <span class="hl-high">click here</span>
+          <span class="hl-high">right now!</span>
+        </div>
+        <div class="feat-bar" style="gap:14px; margin-bottom:20px;">
+          <div class="feat-row">
+            <div class="feat-label" style="font-size:12px">click here</div>
+            <div class="feat-track" style="height:10px"><div class="feat-fill" style="width:94%;background:linear-gradient(90deg,#dc2626,#f87171)"></div></div>
+            <div class="feat-score" style="color:#f87171; font-size: 16px">0.94</div>
+          </div>
+          <div class="feat-row">
+            <div class="feat-label" style="font-size:12px">ngay bây giờ</div>
+            <div class="feat-track" style="height:10px"><div class="feat-fill" style="width:82%;background:linear-gradient(90deg,#dc2626,#f87171)"></div></div>
+            <div class="feat-score" style="color:#f87171; font-size: 16px">0.82</div>
+          </div>
+          <div class="feat-row">
+            <div class="feat-label" style="font-size:12px">Click now</div>
+            <div class="feat-track" style="height:10px"><div class="feat-fill" style="width:67%;background:linear-gradient(90deg,#d97706,#fbbf24)"></div></div>
+            <div class="feat-score" style="color:#fbbf24; font-size: 16px">0.67</div>
+          </div>
+          <div class="feat-row">
+            <div class="feat-label" style="font-size:12px">a prize</div>
+            <div class="feat-track" style="height:10px"><div class="feat-fill" style="width:41%;background:linear-gradient(90deg,#0ea5e9,#38bdf8)"></div></div>
+            <div class="feat-score" style="color:#38bdf8; font-size: 16px">0.41</div>
+          </div>
+        </div>
+        <div style="margin-top:auto;display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(220,38,38,.08);border-radius:8px;border:1px solid rgba(220,38,38,.3)">
+          <span style="font-size:22px">🚨</span>
+          <div>
+            <span style="font-size: 18px;color:#f87171;font-weight:600">Verdict: PHISHING</span>
+            <span style="font-size:12px;color:var(--muted);margin-left:8px">confidence: 0.94</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- User's Extension Warning Mockups -->
+      <div class="card card-fill" style="display:flex; flex-direction:column; justify-content:center; gap:16px; background:rgba(0,0,0,0.2) !important;">
+        <!-- Alert 1: SAFE -->
+        <div style="background:#0f1923; border:1px solid rgba(255,255,255,0.05); border-left:3px solid #34d399; border-radius:6px; padding:12px 14px; display:flex; flex-direction:column; gap:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="color:#34d399; font-weight:700; font-size:11px; letter-spacing:0.5px;">ANALYSIS COMPLETE: NO THREAT DETECTED</div>
+            <div style="color:var(--muted); font-size:9px; font-family:'JetBrains Mono', monospace;">STATUS: SAFE</div>
+          </div>
+          <div style="color:rgba(255,255,255,0.7); font-size:11px; font-family:'JetBrains Mono', monospace;">AI Confidence — QuickText: 99.0%</div>
+          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:8px 12px; color:#e2e8f0; font-size:12px; font-style:italic;">
+            "Tainan Cầu Vĩnh Tuy lúc này. Mong bình an"
+          </div>
+          <div style="display:flex; justify-content:flex-end;">
+            <div style="border:1px solid rgba(255,255,255,0.2); color:#e2e8f0; padding:6px 14px; border-radius:4px; font-size:10px; font-weight:600; text-transform:uppercase;">Dismiss</div>
+          </div>
+        </div>
+
+        <!-- Alert 2: SCAM -->
+        <div style="background:#0f1923; border:1px solid rgba(255,255,255,0.05); border-left:3px solid #f87171; border-radius:6px; padding:12px 14px; display:flex; flex-direction:column; gap:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="color:#f87171; font-weight:700; font-size:11px; letter-spacing:0.5px;">SECURITY ALERT: MALICIOUS CONTENT DETECTED</div>
+            <div style="color:var(--muted); font-size:9px; font-family:'JetBrains Mono', monospace;">STATUS: SCAM</div>
+          </div>
+          <div style="color:rgba(255,255,255,0.7); font-size:11px; font-family:'JetBrains Mono', monospace;">AI Confidence — QuickText: 82.1%</div>
+          <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:8px 12px; color:#e2e8f0; font-size:12px; font-style:italic; line-height:1.4;">
+            "Bác sĩ ở Bệnh viện Việt Đức, Bạch Mai cơ sở 2 is hỗ trợ 15,6 triệu đồng/tháng"
+          </div>
+          <div style="display:flex; justify-content:flex-end; gap:8px;">
+            <div style="background:#e11d48; color:#fff; padding:6px 14px; border-radius:4px; font-size:10px; font-weight:600; text-transform:uppercase;">Report False Positive</div>
+            <div style="border:1px solid rgba(255,255,255,0.2); color:#e2e8f0; padding:6px 14px; border-radius:4px; font-size:10px; font-weight:600; text-transform:uppercase;">Dismiss</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     S8 · HITL & RETRAIN
+═══════════════════════════════════════ -->
+<div class="slide accent-green" id="s8" data-baton="🔄">
+  <div class="s-eyebrow"><span></span>07 · Continuous Learning</div>
+  <div class="s-title text-main-title">HITL &amp; Learn again Pipeline</div>
+  <div class="s-sub text-sub-title">Human-In-The-Loop · Load new version · Zero Downtime</div>
+
+  <div class="rows stagger" style="flex:1">
+    <!-- flow -->
+    <div class="flow" style="flex:0 0 auto; min-height:150px; padding:20px 16px; align-items:center; background:rgba(0,0,0,0.15); border-radius:12px; border:1px dashed rgba(255,255,255,0.05); margin-bottom:12px;">
+      <div class="flow-node" style="border-color:rgba(14,165,233,.4); height:auto; padding:20px 16px; min-width:180px;">
+        <div class="flow-node-icon" style="font-size:26px; margin-bottom:12px;">⚠️</div>
+        <div class="flow-node-title" style="font-size:15px; margin-bottom:6px;">AI Alert</div>
+        <div class="flow-node-sub" style="font-size:12px;">Alert mập mờ from Smart checker</div>
+      </div>
+      <div class="flow-arrow"></div>
+      <div class="flow-node" style="border-color:rgba(124,58,237,.5); height:auto; padding:20px 16px; min-width:180px;">
+        <div class="flow-node-icon" style="font-size:26px; margin-bottom:12px;">📋</div>
+        <div class="flow-node-title" style="font-size:15px; margin-bottom:6px;">Jobs to review</div>
+        <div class="flow-node-sub" style="font-size:12px;">Admin review trên Dashboard</div>
+      </div>
+      <div class="flow-arrow"></div>
+      <div class="flow-node" style="border-color:rgba(5,150,105,.5); height:auto; padding:20px 16px; min-width:180px;">
+        <div class="flow-node-icon" style="font-size:26px; margin-bottom:12px;">✅</div>
+        <div class="flow-node-title" style="font-size:15px; margin-bottom:6px;">Verified Data</div>
+        <div class="flow-node-sub" style="font-size:12px;">Labeled dataset balance by</div>
+      </div>
+      <div class="flow-arrow"></div>
+      <div class="flow-node" style="border-color:rgba(217,119,6,.5); height:auto; padding:20px 16px; min-width:180px;">
+        <div class="flow-node-icon" style="font-size:26px; margin-bottom:12px;">🔄</div>
+        <div class="flow-node-title" style="font-size:15px; margin-bottom:6px;">Learn again</div>
+        <div class="flow-node-sub" style="font-size:12px;">30 Epochs · Background task</div>
+      </div>
+      <div class="flow-arrow"></div>
+      <div class="flow-node" style="border-color:rgba(14,165,233,.5); height:auto; padding:20px 16px; min-width:180px;">
+        <div class="flow-node-icon" style="font-size:26px; margin-bottom:12px;">⚡</div>
+        <div class="flow-node-title" style="font-size:15px; margin-bottom:6px;">Load new version</div>
+        <div class="flow-node-sub" style="font-size:12px;">Model mới · Zero downtime</div>
+      </div>
+    </div>
+
+    <!-- detail + image -->
+    <div class="cols" style="flex:1; gap:24px; margin-top:16px;">
+      <!-- Left Column: Key Features -->
+      <div class="col col-4" style="display:flex; flex-direction:column; gap:20px;">
+        <div class="card card-p card-fill" style="display:flex; flex-direction:column; justify-content:center;">
+          <div class="card-title ct-p" style="font-size:15px; margin-bottom:12px;">Human-In-The-Loop</div>
+          <div class="body-text" style="font-size:16px; line-height:1.7;">Admin review via <strong>React Dashboard</strong> — final decision for unclear cases where AI is not confident.</div>
+        </div>
+        <div class="card card-a card-fill" style="display:flex; flex-direction:column; justify-content:center;">
+          <div class="card-title ct-a" style="font-size:15px; margin-bottom:12px;">Auto-Balance</div>
+          <div class="body-text" style="font-size:16px; line-height:1.7;">Make balanced training examples before retrain — avoid data bias in model training.</div>
+        </div>
+        <div class="card card-c card-fill" style="display:flex; flex-direction:column; justify-content:center;">
+          <div class="card-title ct-c" style="font-size:15px; margin-bottom:12px;">Hot-Reload</div>
+          <div class="body-text" style="font-size:16px; line-height:1.7;">Model mới load thẳng vào API <strong>not restart</strong> — service phòng thủ giữ luồng traffic liên tục 100%uptime.</div>
+        </div>
+      </div>
+
+      <!-- Right Column: Dashboard Image -->
+      <div class="col col-fill" style="display:flex; flex-direction:column;">
+        <div class="card card-fill" style="padding:8px; display:flex; flex-direction:column; border-radius:14px; background:rgba(0,0,0,0.5); overflow:hidden; border:1px solid rgba(255,255,255,0.05); box-shadow: 0 10px 40px rgba(0,0,0,0.4);">
+          <div style="padding:8px 14px; font-size: 16px; font-weight:600; font-family:'JetBrains Mono', monospace; color:var(--muted); border-bottom:1px solid rgba(255,255,255,0.05); margin-bottom:8px; display:flex; align-items:center; gap:8px;">
+            <div style="width:12px; height:12px; border-radius:50%; background:#ef4444;"></div>
+            <div style="width:12px; height:12px; border-radius:50%; background:#eab308;"></div>
+            <div style="width:12px; height:12px; border-radius:50%; background:#22c55e;"></div>
+            <span style="margin-left:8px; display:flex; align-items:center; gap:8px;">SWG-Admin-Dashboard <span style="font-size:10px; padding:2px 8px; background:rgba(14,165,233,.2); color:var(--cyan); border-radius:10px; letter-spacing:1px;">LIVE</span></span>
+          </div>
+          <img src="dashboard.png" style="width:100%; height:100%; object-fit:contain; border-radius:4px; display:block;" alt="Admin Dashboard">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     S9 · EVALUATION
+═══════════════════════════════════════ -->
+<div class="slide accent-cyan" id="s9" data-baton="📊">
+  <div class="s-eyebrow"><span></span>08 · Results &amp; Evaluation</div>
+  <div class="s-title text-main-title">How good is it</div>
+  <div class="s-sub text-sub-title">Smart checker training config · Confusion matrix · Loss curve</div>
+
+  <div class="cols stagger" style="flex:1">
+    <!-- left -->
+    <div class="col col-5" style="flex:0 0 44%">
+      <!-- stats -->
+      <div class="cols" style="gap:16px">
+        <div class="card card-c" style="flex:1;text-align:center;padding:24px;">
+          <div class="stat-num" style="font-size:48px;">86.9<span style="font-size:28px">%</span></div>
+          <div class="stat-label" style="font-size: 18px; margin-top:8px;">Accuracy on Test Set</div>
+        </div>
+        <div class="card card-g" style="flex:1;text-align:center;padding:24px;">
+          <div class="stat-num" style="color:var(--green2);font-size:48px">Low</div>
+          <div class="stat-label" style="font-size: 18px; margin-top:8px;">False Positive Rate</div>
+        </div>
+      </div>
+
+      <!-- training config -->
+      <div class="card card-fill" style="padding:24px;">
+        <div class="card-title ct-c" style="font-size:16px; margin-bottom:16px;">Training Configuration</div>
+        <div class="code" style="font-size:15px; line-height:1.8;">
+<span class="cm"># Smart checker hyperparameters</span>
+max_length    = <span class="num">512</span>
+batch_size    = <span class="num">16</span>
+learning_rate = <span class="num">1e-5</span>
+epochs        = <span class="num">30</span>  <span class="cm"># background</span>
+optimizer     = <span class="kw">AdamW</span>
+load_best_model_at_end = <span class="kw">True</span>
+        </div>
+        <div style="margin-top:20px;font-size: 18px;color:rgba(224,240,255,.75);line-height:1.6">
+          Auto-save <strong style="color:#e8f4fd">best checkpoint</strong> theo validation loss — tránh overfitting dù train 30 epochs.
+        </div>
+      </div>
+
+      <!-- loss curve -->
+      <div class="card" style="padding:24px;">
+        <div class="card-title" style="color:rgba(224,240,255,.4);margin-bottom:12px; font-size: 18px;">Loss Curve (sketch)</div>
+        <svg viewBox="0 0 280 68" width="100%">
+          <polyline points="0,5 30,38 60,51 90,55 120,56 150,57 180,57.5 210,57.5 240,57.5 270,57.5"
+            fill="none" stroke="#0ea5e9" stroke-width="2" stroke-linejoin="round"/>
+          <polyline points="0,28 10,31 30,27 60,24 90,21 120,22 150,21 180,21 210,21 240,21 270,21"
+            fill="none" stroke="#f87171" stroke-width="1.5" stroke-dasharray="4 3" stroke-linejoin="round"/>
+          <line x1="0" y1="66" x2="270" y2="66" stroke="#1e2d3d" stroke-width="1"/>
+          <text x="2" y="66" fill="#4a6070" font-family="Inter" font-size="7">0</text>
+          <text x="258" y="66" fill="#4a6070" font-family="Inter" font-size="7">30ep</text>
+          <circle cx="210" cy="33" r="3" fill="#0ea5e9"/><text x="216" y="36" fill="#7dd3fc" font-family="Inter" font-size="7">train</text>
+          <circle cx="210" cy="43" r="3" fill="#f87171"/><text x="216" y="46" fill="#fca5a5" font-family="Inter" font-size="7">val</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- right: confusion matrix + image -->
+    <div class="col col-fill">
+      <div class="card card-c card-fill" style="padding: 24px; display:flex; flex-direction:column;">
+        <div class="card-title ct-c" style="margin-bottom:28px; font-size:18px;">Confusion Matrix</div>
+        <div class="cm-grid" style="flex:1; gap:16px;">
+          <div></div>
+          <div class="cm-header" style="font-size: 18px; padding:8px;">Predicted: Safe</div>
+          <div class="cm-header" style="font-size: 18px; padding:8px;">Predicted: Scam</div>
+          <div class="cm-header" style="writing-mode:vertical-lr;transform:rotate(180deg);width:auto;padding:8px; font-size: 18px;">Actual: Safe</div>
+          <div class="cm-cell cm-tn" style="padding:32px 24px;">
+            <div class="cm-cell-num" style="font-size:42px; margin-bottom:12px;">11,482</div>
+            <div class="cm-cell-lbl" style="color:var(--green2); font-size:16px; font-weight:600;">True Negative</div>
+          </div>
+          <div class="cm-cell cm-fp" style="padding:32px 24px;">
+            <div class="cm-cell-num" style="font-size:42px; margin-bottom:12px;">440</div>
+            <div class="cm-cell-lbl" style="color:#f87171; font-size:16px; font-weight:600;">False Positive</div>
+          </div>
+          <div class="cm-header" style="writing-mode:vertical-lr;transform:rotate(180deg);width:auto;padding:8px; font-size: 18px;">Actual: Scam</div>
+          <div class="cm-cell cm-fn" style="padding:32px 24px;">
+            <div class="cm-cell-num" style="font-size:42px; margin-bottom:12px;">2,679</div>
+            <div class="cm-cell-lbl" style="color:#fbbf24; font-size:16px; font-weight:600;">False Negative</div>
+          </div>
+          <div class="cm-cell cm-tp" style="padding:32px 24px;">
+            <div class="cm-cell-num" style="font-size:42px; margin-bottom:12px;">9,243</div>
+            <div class="cm-cell-lbl" style="color:var(--green2); font-size:16px; font-weight:600;">True Positive</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:24px;margin-top:32px;flex-wrap:wrap;justify-content:center;">
+          <div style="display:flex;align-items:center;gap:8px;font-size: 18px;color:var(--muted)">
+            <div style="width:12px;height:12px;border-radius:2px;background:rgba(5,150,105,.3)"></div>Correct
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;font-size: 18px;color:var(--muted)">
+            <div style="width:12px;height:12px;border-radius:2px;background:rgba(220,38,38,.25)"></div>False Positive
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;font-size: 18px;color:var(--muted)">
+            <div style="width:12px;height:12px;border-radius:2px;background:rgba(217,119,6,.25)"></div>False Negative
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     S10 · KẾT LUẬN
+═══════════════════════════════════════ -->
+<div class="slide accent-cyan" id="s10" data-baton="🎯">
+  <div class="s-eyebrow"><span></span>09 · Conclusion</div>
+  <div class="s-title text-main-title">Conclusion &amp; Future Development</div>
+  <div class="s-sub text-sub-title">Works well · Instant protection · Grows with us</div>
+
+  <div class="cols stagger" style="flex:1">
+    <div class="col col-6">
+      <!-- pipeline summary banner -->
+      <div style="padding:16px 18px;background:linear-gradient(135deg,rgba(14,165,233,.07),rgba(124,58,237,.1));border:1px solid rgba(14,165,233,.18);border-radius:10px">
+        <div style="font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:2px;color:var(--cyan2);margin-bottom:10px;text-transform:uppercase">Multi-Layer Pipeline</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span class="chip chip-a">WAF</span>
+          <span style="color:var(--muted);font-size: 18px">→</span>
+          <span class="chip chip-g">QuickText</span>
+          <span style="color:var(--muted);font-size: 18px">→</span>
+          <span class="chip chip-p">Smart checker</span>
+          <span style="color:var(--muted);font-size: 18px">→</span>
+          <span class="chip chip-c">LIME</span>
+          <span style="color:var(--muted);font-size: 18px">→</span>
+          <span class="chip chip-w">HITL</span>
+        </div>
+      </div>
+
+      <div class="card card-c card-fill">
+        <div class="card-title ct-c">Conclusion</div>
+        <ul class="blist">
+          <li>Solve the <strong>"bottleneck"</strong> via layered approach: <strong>QuickText fast</strong>, <strong>Smart Checker deep</strong></li>
+          <li>AI can <strong>explain</strong> decisions via LIME — increase reliability</li>
+          <li><strong>HITL + Load new version</strong> loop creates a self-improving system continuously</li>
+          <li>System is <strong>well-defined</strong>, providing protection across <strong>real-time</strong> threats</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="col col-fill">
+      <div class="card card-a card-fill">
+        <div class="card-title ct-a" style="margin-bottom:14px">Future Development Roadmap</div>
+        <div class="tl">
+          <div class="tl-item">
+            <div class="tl-spine">
+              <div class="tl-dot" style="border-color:#fbbf24;box-shadow:0 0 8px rgba(251,191,36,.4)"></div>
+              <div class="tl-line"></div>
+            </div>
+            <div class="tl-body">
+              <div class="tl-t">Vietnamese Dataset Expansion</div>
+              <div class="tl-d">Grow the Vietnamese Fraud Dataset — Zalo scams, fake bank messages, OTP fraud</div>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-spine">
+              <div class="tl-dot" style="border-color:var(--purple2);box-shadow:0 0 8px rgba(167,139,250,.4)"></div>
+              <div class="tl-line"></div>
+            </div>
+            <div class="tl-body">
+              <div class="tl-t">Vision: Image &amp; QR Code Detection</div>
+              <div class="tl-d">Find fake images and bad QR codes — add image checking</div>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-spine">
+              <div class="tl-dot" style="border-color:var(--cyan2);box-shadow:0 0 8px rgba(56,189,248,.4)"></div>
+            </div>
+            <div class="tl-body" style="padding-bottom:0">
+              <div class="tl-t">Containerization · Docker</div>
+              <div class="tl-d">Deploy to production with <strong style="color:var(--cyan2)">Docker</strong> — consistent environment, effective dependency management</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- image slot for system demo / architecture overview -->
+      <div class="img-slot" style="max-height:90px">
+        <div class="img-slot-icon">🖥</div>
+        <div class="img-slot-label">Demo / Live System Screenshot</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     S11 · THANK YOU 
+═══════════════════════════════════════ -->
+<div class="slide" id="s11" style="justify-content:center; align-items:center; text-align:center;">
+  <div class="stagger" style="display:flex; flex-direction:column; align-items:center; transform:translateY(-20px)">
+    <!-- Animated shield SVG (Smaller for Thank You slide) -->
+    <svg width="110" height="130" viewBox="0 0 220 260" fill="none" style="margin-bottom:28px">
+      <defs>
+        <filter id="glow-s11">
+          <feGaussianBlur stdDeviation="3" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <path d="M110 12 L198 50 L198 130 C198 182 158 228 110 248 C62 228 22 182 22 130 L22 50 Z"
+            fill="rgba(14,165,233,.1)" stroke="#0ea5e9" stroke-width="2" filter="url(#glow-s11)"/>
+      <path d="M110 38 L178 68 L178 130 C178 170 148 208 110 224 C72 208 42 170 42 130 L42 68 Z"
+            fill="none" stroke="#7c3aed" stroke-width="1.5" opacity=".6"/>
+      <text x="110" y="145" fill="#0ea5e9" font-family="sans-serif" font-size="40" text-anchor="middle" font-weight="700" opacity=".8">AI</text>
+    </svg>
+    <div style="width:64px; height:3px; background:var(--cyan); opacity:0.8; margin-bottom:30px; border-radius:3px;"></div>
+    <div style="font-size:clamp(56px, 6vw, 86px); font-weight:700; color:#e8f4fd; letter-spacing:-1px; margin-bottom:20px; line-height:1.1">
+      Thank You<br>for Listening!
+    </div>
+    <div style="font-size:16px; color:var(--muted); letter-spacing:0.5px; margin-bottom:48px;">
+      Capstone Project — Secure Web Gateway System · Student Team
+    </div>
+    <div style="display:flex; gap:16px; justify-content:center;">
+      <div class="chip chip-c" style="font-size:15px; padding:10px 24px; font-weight:500;">Q &amp; A Session</div>
+      <div class="chip chip-p" style="font-size:15px; padding:10px 24px; font-weight:500;">Live System Demo</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /strip -->
+</div><!-- /stage -->
+
+<!-- ═══ EXPORT PANEL ═══ -->
+<div id="exp-toggle" title="Export (E)" onclick="toggleExport()">⬇</div>
+
+<div id="export-panel">
+  <button class="exp-btn pdf" onclick="exportPDF()" title="In tất cả slide ra PDF (Ctrl+P → Save as PDF)">
+    <span class="exp-btn-icon">📄</span> Export PDF
+  </button>
+  <button class="exp-btn pptx" onclick="showPptxHelp()" title="Xem hướng dẫn export PPTX">
+    <span class="exp-btn-icon">📊</span> Export PPTX
+  </button>
+  <div id="exp-close" onclick="toggleExport()" title="Close">✕</div>
+</div>
+
+<!-- PPTX help modal -->
+<div id="pptx-modal" style="
+  display:none; position:fixed; inset:0; z-index:99999;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(8px);
+  align-items:center; justify-content:center;
+">
+  <div style="
+    background:#0f1923; border:1px solid rgba(14,165,233,.3);
+    border-radius:16px; padding:32px 36px; max-width:480px; width:90%;
+    box-shadow:0 24px 80px rgba(0,0,0,.6);
+  ">
+    <div style="font-size:18px;font-weight:700;color:#e8f4fd;margin-bottom:8px">📊 Export PPTX</div>
+    <div style="font-size:12px;color:#8ba5bc;margin-bottom:20px">Use script to make PowerPoint</div>
+
+    <div style="background:rgba(14,165,233,.07);border:1px solid rgba(14,165,233,.15);border-radius:8px;padding:14px 16px;margin-bottom:16px">
+      <div style="font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:1.5px;color:#38bdf8;margin-bottom:8px;text-transform:uppercase">Bước 1 — Cài thư viện</div>
+      <code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#34d399">npm install puppeteer pptxgenjs</code>
+    </div>
+
+    <div style="background:rgba(14,165,233,.07);border:1px solid rgba(14,165,233,.15);border-radius:8px;padding:14px 16px;margin-bottom:20px">
+      <div style="font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:1.5px;color:#38bdf8;margin-bottom:8px;text-transform:uppercase">Bước 2 — Chạy script</div>
+      <code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#34d399">node export-pptx.js</code>
+    </div>
+
+    <div style="font-size:11.5px;color:#8ba5bc;margin-bottom:24px;line-height:1.7">
+      Script <code style="color:#a78bfa;font-family:'JetBrains Mono',monospace">export-pptx.js</code> already there.<br>
+      Sau khi chạy xong will create ra file <code style="color:#a78bfa;font-family:'JetBrains Mono',monospace">SWG-Shield.pptx</code>.
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button onclick="document.getElementById('pptx-modal').style.display='none'" style="
+        padding:8px 20px;border-radius:8px;border:1px solid rgba(255,255,255,.12);
+        background:rgba(255,255,255,.06);color:#e8f4fd;cursor:pointer;
+        font-family:'JetBrains Mono',monospace;font-size:12px;
+      ">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   STATE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+const TOTAL   = 11;
+let cur       = 0;
+let locked    = false;
+
+const strip   = document.getElementById('strip');
+const prog    = document.getElementById('prog');
+const numEl   = document.getElementById('slide-num');
+const dotsEl  = document.getElementById('dots');
+const veil    = document.getElementById('veil');
+const slides  = document.querySelectorAll('.slide');
+
+
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   BUILD DOTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+for (let i = 0; i < TOTAL; i++) {
+  const d = document.createElement('div');
+  d.className = 'dot' + (i === 0 ? ' on' : '');
+  d.addEventListener('click', () => goTo(i));
+  dotsEl.appendChild(d);
+}
+
+function updateLayout() {
+  const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+  const scaledW = 1920 * scale;
+  const scaledH = 1080 * scale;
+  const offsetX = (window.innerWidth - scaledW) / 2;
+  const offsetY = (window.innerHeight - scaledH) / 2;
+  
+  strip.style.transformOrigin = '0 0';
+  strip.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale}) translateX(${-cur * 1920}px)`;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   GO TO SLIDE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function goTo(n) {
+  if (locked) return;
+  n = Math.max(0, Math.min(TOTAL - 1, n));
+  if (n === cur) return;
+  locked = true;
+
+
+  /* veil flash */
+  veil.style.opacity = '1';
+  setTimeout(() => { veil.style.opacity = '0'; }, 80);
+
+  /* update active class for stagger */
+  slides[cur].classList.remove('active');
+  cur = n;
+  
+  /* pan the strip */
+  updateLayout();
+
+  slides[cur].classList.add('active');
+
+  /* reset stagger by cloning trick — remove + re-add class */
+  const sl = slides[cur];
+  sl.classList.remove('active');
+  void sl.offsetWidth; /* reflow */
+  sl.classList.add('active');
+
+  /* update global state for shield */
+  document.body.className = 's-idx-' + cur;
+
+  updateHUD();
+
+  /* unlock after transition completes */
+  setTimeout(() => { locked = false; }, 900);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   UPDATE HUD
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function updateHUD() {
+  /* progress bar */
+  const pct = ((cur + 1) / TOTAL * 100).toFixed(1);
+  prog.style.width = pct + '%';
+
+  /* counter */
+  numEl.textContent = String(cur + 1).padStart(2, '0') + ' / ' + String(TOTAL).padStart(2, '0');
+
+  /* dots */
+  document.querySelectorAll('.dot').forEach((d, i) => {
+    d.classList.toggle('on', i === cur);
+  });
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   KEYBOARD
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ')  { e.preventDefault(); goTo(cur + 1); }
+  if (e.key === 'ArrowLeft')                     { e.preventDefault(); goTo(cur - 1); }
+  if (e.key === 'Home')  goTo(0);
+  if (e.key === 'End')   goTo(TOTAL - 1);
+  if (e.key === 'e' || e.key === 'E') { e.preventDefault(); toggleExport(); }
+  if (e.key === 'Escape') {
+    const panel = document.getElementById('export-panel');
+    const modal = document.getElementById('pptx-modal');
+    if (modal.style.display === 'flex') { modal.style.display = 'none'; return; }
+    if (panel.classList.contains('visible')) { toggleExport(); }
+  }
+});
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   TOUCH SWIPE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+let tx = 0, ty = 0;
+document.addEventListener('touchstart', e => {
+  tx = e.touches[0].clientX;
+  ty = e.touches[0].clientY;
+}, { passive: true });
+document.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - tx;
+  const dy = e.changedTouches[0].clientY - ty;
+  if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 44) {
+    goTo(cur + (dx < 0 ? 1 : -1));
+  }
+});
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   EXPORT FUNCTIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function toggleExport() {
+  const panel  = document.getElementById('export-panel');
+  const toggle = document.getElementById('exp-toggle');
+  const open   = panel.classList.toggle('visible');
+  toggle.style.opacity = open ? '0' : '';
+  toggle.style.pointerEvents = open ? 'none' : '';
+}
+
+function exportPDF() {
+  // Brief user hint then print
+  const btn = document.querySelector('.exp-btn.pdf');
+  btn.textContent = '⏳ Đang chuẩn bị...';
+  btn.style.pointerEvents = 'none';
+
+  // Small delay so browser can paint the button state
+  setTimeout(() => {
+    window.print();
+    // Restore button after dialog closes
+    setTimeout(() => {
+      btn.innerHTML = '<span class="exp-btn-icon">📄</span> Export PDF';
+      btn.style.pointerEvents = '';
+    }, 1000);
+  }, 120);
+}
+
+function showPptxHelp() {
+  const modal = document.getElementById('pptx-modal');
+  modal.style.display = 'flex';
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   INIT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+(function init() {
+  strip.style.width = (TOTAL * 1920) + 'px';
+  updateLayout();
+  window.addEventListener('resize', updateLayout);
+  slides[0].classList.add('active');
+  document.body.className = 's-idx-0';
+  updateHUD();
+})();
+</script>
+</body>
+</html>

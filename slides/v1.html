@@ -1,0 +1,215 @@
+<!-- ═══════════════════════════════════════
+     S9 · EVALUATION
+═══════════════════════════════════════ -->
+<div class="slide accent-cyan" id="s9" data-baton="📊">
+  <div class="s-eyebrow"><span></span>08 · Results &amp; Evaluation</div>
+  <div class="s-title">Đánh giá hiệu năng</div>
+  <div class="s-sub">DistilBERT training config · Confusion matrix · Loss curve</div>
+
+  <div class="cols stagger" style="flex:1">
+    <!-- left -->
+    <div class="col col-5" style="flex:0 0 44%">
+      <!-- stats -->
+      <div class="cols" style="gap:16px">
+        <div class="card card-c" style="flex:1;text-align:center;padding:24px;">
+          <div class="stat-num" style="font-size:48px;">86.9<span style="font-size:28px">%</span></div>
+          <div class="stat-label" style="font-size: 18px; margin-top:8px;">Accuracy on Test Set</div>
+        </div>
+        <div class="card card-g" style="flex:1;text-align:center;padding:24px;">
+          <div class="stat-num" style="color:var(--green2);font-size:48px">Low</div>
+          <div class="stat-label" style="font-size: 18px; margin-top:8px;">False Positive Rate</div>
+        </div>
+      </div>
+
+      <!-- training config -->
+      <div class="card card-fill" style="padding:24px;">
+        <div class="card-title ct-c" style="font-size:16px; margin-bottom:16px;">Training Configuration</div>
+        <div class="code" style="font-size:15px; line-height:1.8;">
+<span class="cm"># DistilBERT hyperparameters</span>
+max_length    = <span class="num">512</span>
+batch_size    = <span class="num">16</span>
+learning_rate = <span class="num">1e-5</span>
+epochs        = <span class="num">30</span>  <span class="cm"># background</span>
+optimizer     = <span class="kw">AdamW</span>
+load_best_model_at_end = <span class="kw">True</span>
+        </div>
+        <div style="margin-top:20px;font-size: 18px;color:rgba(224,240,255,.75);line-height:1.6">
+          Auto-save <strong style="color:#e8f4fd">best checkpoint</strong> theo validation loss — tránh overfitting dù train 30 epochs.
+        </div>
+      </div>
+
+      <!-- loss curve -->
+      <div class="card" style="padding:24px;">
+        <div class="card-title" style="color:rgba(224,240,255,.4);margin-bottom:12px; font-size: 18px;">Loss Curve (sketch)</div>
+        <svg viewBox="0 0 280 68" width="100%">
+          <polyline points="0,5 30,38 60,51 90,55 120,56 150,57 180,57.5 210,57.5 240,57.5 270,57.5"
+            fill="none" stroke="#0ea5e9" stroke-width="2" stroke-linejoin="round"/>
+          <polyline points="0,28 10,31 30,27 60,24 90,21 120,22 150,21 180,21 210,21 240,21 270,21"
+            fill="none" stroke="#f87171" stroke-width="1.5" stroke-dasharray="4 3" stroke-linejoin="round"/>
+          <line x1="0" y1="66" x2="270" y2="66" stroke="#1e2d3d" stroke-width="1"/>
+          <text x="2" y="66" fill="#4a6070" font-family="Inter" font-size="7">0</text>
+          <text x="258" y="66" fill="#4a6070" font-family="Inter" font-size="7">30ep</text>
+          <circle cx="210" cy="33" r="3" fill="#0ea5e9"/><text x="216" y="36" fill="#7dd3fc" font-family="Inter" font-size="7">train</text>
+          <circle cx="210" cy="43" r="3" fill="#f87171"/><text x="216" y="46" fill="#fca5a5" font-family="Inter" font-size="7">val</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- right: confusion matrix + image -->
+    <div class="col col-fill">
+      <div class="card card-c card-fill" style="padding: 24px; display:flex; flex-direction:column;">
+        <div class="card-title ct-c" style="margin-bottom:28px; font-size:18px;">Confusion Matrix</div>
+        <div class="cm-grid" style="flex:1; gap:16px;">
+          <div></div>
+          <div class="cm-header" style="font-size: 18px; padding:8px;">Predicted: Safe</div>
+          <div class="cm-header" style="font-size: 18px; padding:8px;">Predicted: Scam</div>
+          <div class="cm-header" style="writing-mode:vertical-lr;transform:rotate(180deg);width:auto;padding:8px; font-size: 18px;">Actual: Safe</div>
+          <div class="cm-cell cm-tn" style="padding:32px 24px;">
+            <div class="cm-cell-num" style="font-size:42px; margin-bottom:12px;">11,482</div>
+            <div class="cm-cell-lbl" style="color:var(--green2); font-size:16px; font-weight:600;">True Negative</div>
+          </div>
+          <div class="cm-cell cm-fp" style="padding:32px 24px;">
+            <div class="cm-cell-num" style="font-size:42px; margin-bottom:12px;">440</div>
+            <div class="cm-cell-lbl" style="color:#f87171; font-size:16px; font-weight:600;">False Positive</div>
+          </div>
+          <div class="cm-header" style="writing-mode:vertical-lr;transform:rotate(180deg);width:auto;padding:8px; font-size: 18px;">Actual: Scam</div>
+          <div class="cm-cell cm-fn" style="padding:32px 24px;">
+            <div class="cm-cell-num" style="font-size:42px; margin-bottom:12px;">2,679</div>
+            <div class="cm-cell-lbl" style="color:#fbbf24; font-size:16px; font-weight:600;">False Negative</div>
+          </div>
+          <div class="cm-cell cm-tp" style="padding:32px 24px;">
+            <div class="cm-cell-num" style="font-size:42px; margin-bottom:12px;">9,243</div>
+            <div class="cm-cell-lbl" style="color:var(--green2); font-size:16px; font-weight:600;">True Positive</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:24px;margin-top:32px;flex-wrap:wrap;justify-content:center;">
+          <div style="display:flex;align-items:center;gap:8px;font-size: 18px;color:var(--muted)">
+            <div style="width:12px;height:12px;border-radius:2px;background:rgba(5,150,105,.3)"></div>Correct
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;font-size: 18px;color:var(--muted)">
+            <div style="width:12px;height:12px;border-radius:2px;background:rgba(220,38,38,.25)"></div>False Positive
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;font-size: 18px;color:var(--muted)">
+            <div style="width:12px;height:12px;border-radius:2px;background:rgba(217,119,6,.25)"></div>False Negative
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     S10 · KẾT LUẬN
+═══════════════════════════════════════ -->
+<div class="slide accent-cyan" id="s10" data-baton="🎯">
+  <div class="s-eyebrow"><span></span>09 · Conclusion</div>
+  <div class="s-title">Kết luận &amp; Hướng phát triển</div>
+  <div class="s-sub">Hệ thống ổn định · Bảo vệ thời gian thực · Mở rộng được</div>
+
+  <div class="cols stagger" style="flex:1">
+    <div class="col col-6">
+      <!-- pipeline summary banner -->
+      <div style="padding:16px 18px;background:linear-gradient(135deg,rgba(14,165,233,.07),rgba(124,58,237,.1));border:1px solid rgba(14,165,233,.18);border-radius:10px">
+        <div style="font-size:10px;font-family:'JetBrains Mono',monospace;letter-spacing:2px;color:var(--cyan2);margin-bottom:10px;text-transform:uppercase">Multi-Layer Pipeline</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span class="chip chip-a">WAF</span>
+          <span style="color:var(--muted);font-size: 18px">→</span>
+          <span class="chip chip-g">FastText</span>
+          <span style="color:var(--muted);font-size: 18px">→</span>
+          <span class="chip chip-p">DistilBERT</span>
+          <span style="color:var(--muted);font-size: 18px">→</span>
+          <span class="chip chip-c">LIME</span>
+          <span style="color:var(--muted);font-size: 18px">→</span>
+          <span class="chip chip-w">HITL</span>
+        </div>
+      </div>
+
+      <div class="card card-c card-fill">
+        <div class="card-title ct-c">Kết luận</div>
+        <ul class="blist">
+          <li>Giải quyết <strong>"nút thắt cổ chai"</strong> bằng phân cấp: <strong>FastText nhanh</strong>, <strong>DistilBERT sâu</strong></li>
+          <li>AI có thể <strong>giải thích</strong> quyết định qua LIME — tăng độ tin cậy</li>
+          <li>Vòng lặp <strong>HITL + Hot-reload</strong> tạo hệ thống tự cải thiện liên tục</li>
+          <li>Hệ thống <strong>ổn định</strong>, bảo vệ theo <strong>thời gian thực</strong></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="col col-fill">
+      <div class="card card-a card-fill">
+        <div class="card-title ct-a" style="margin-bottom:14px">Hướng phát triển</div>
+        <div class="tl">
+          <div class="tl-item">
+            <div class="tl-spine">
+              <div class="tl-dot" style="border-color:#fbbf24;box-shadow:0 0 8px rgba(251,191,36,.4)"></div>
+              <div class="tl-line"></div>
+            </div>
+            <div class="tl-body">
+              <div class="tl-t">Dataset Tiếng Việt</div>
+              <div class="tl-d">Mở rộng bộ dữ liệu lừa đảo Tiếng Việt — phishing Zalo, tin nhắn ngân hàng giả, OTP scam</div>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-spine">
+              <div class="tl-dot" style="border-color:var(--purple2);box-shadow:0 0 8px rgba(167,139,250,.4)"></div>
+              <div class="tl-line"></div>
+            </div>
+            <div class="tl-body">
+              <div class="tl-t">Vision: Hình ảnh &amp; QR Code</div>
+              <div class="tl-d">Nhận diện ảnh lừa đảo, QR Code độc hại — tích hợp Computer Vision vào pipeline</div>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-spine">
+              <div class="tl-dot" style="border-color:var(--cyan2);box-shadow:0 0 8px rgba(56,189,248,.4)"></div>
+            </div>
+            <div class="tl-body" style="padding-bottom:0">
+              <div class="tl-t">Containerization · Docker</div>
+              <div class="tl-d">Triển khai production với <strong style="color:var(--cyan2)">Docker</strong> — hệ thống nhất quán, quản lý dependency hiệu quả</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- image slot for system demo / architecture overview -->
+      <div class="img-slot" style="max-height:90px">
+        <div class="img-slot-icon">🖥</div>
+        <div class="img-slot-label">Demo / Live System Screenshot</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     S11 · THANK YOU 
+═══════════════════════════════════════ -->
+<div class="slide" id="s11" style="justify-content:center; align-items:center; text-align:center;">
+  <div class="stagger" style="display:flex; flex-direction:column; align-items:center; transform:translateY(-20px)">
+    <!-- Animated shield SVG (Smaller for Thank You slide) -->
+    <svg width="110" height="130" viewBox="0 0 220 260" fill="none" style="margin-bottom:28px">
+      <defs>
+        <filter id="glow-s11">
+          <feGaussianBlur stdDeviation="3" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <path d="M110 12 L198 50 L198 130 C198 182 158 228 110 248 C62 228 22 182 22 130 L22 50 Z"
+            fill="rgba(14,165,233,.1)" stroke="#0ea5e9" stroke-width="2" filter="url(#glow-s11)"/>
+      <path d="M110 38 L178 68 L178 130 C178 170 148 208 110 224 C72 208 42 170 42 130 L42 68 Z"
+            fill="none" stroke="#7c3aed" stroke-width="1.5" opacity=".6"/>
+      <text x="110" y="145" fill="#0ea5e9" font-family="sans-serif" font-size="40" text-anchor="middle" font-weight="700" opacity=".8">AI</text>
+    </svg>
+    <div style="width:64px; height:3px; background:var(--cyan); opacity:0.8; margin-bottom:30px; border-radius:3px;"></div>
+    <div style="font-size:clamp(56px, 6vw, 86px); font-weight:700; color:#e8f4fd; letter-spacing:-1px; margin-bottom:20px; line-height:1.1">
+      Cảm ơn Thầy Cô<br>Đã lắng nghe!
+    </div>
+    <div style="font-size:16px; color:var(--muted); letter-spacing:0.5px; margin-bottom:48px;">
+      Đồ án tốt nghiệp hệ thống Secure Web Gateway — Nhóm sinh viên thực hiện
+    </div>
+    <div style="display:flex; gap:16px; justify-content:center;">
+      <div class="chip chip-c" style="font-size:15px; padding:10px 24px; font-weight:500;">Phần Hỏi Đáp (Q&amp;A)</div>
+      <div class="chip chip-p" style="font-size:15px; padding:10px 24px; font-weight:500;">Demo Hệ Thống (Live)</div>
+    </div>
+  </div>
+</div>
+

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<style>
+/* Base stuff */
+body { background: #0b1121; color: white; font-family: 'Space Grotesk', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+.slide { width: 1600px; height: 900px; background: #0c1421; position: relative; display: flex; flex-direction: column; padding: 40px; box-sizing: border-box;}
+.s-eyebrow { font-size: 22px; color: #0ea5e9; text-transform: uppercase; margin-bottom: 10px; }
+.s-title { font-size: 86px; font-weight: 700; color: #e8f4fd; margin: 0; line-height: 1; }
+.s-sub { font-size: 34px; color: #bad0e8; margin-top: 10px; }
+
+/* The new tree architecture */
+.tree-container { flex: 1; margin-top: 40px; display: flex; position: relative; }
+.tree-legend {
+    width: 140px;
+    display: flex; flex-direction: column; justify-content: space-around;
+    padding: 30px 0; font-size: 16px; font-weight: 700; letter-spacing: 2px;
+}
+.tree-legend div { text-transform: uppercase; }
+
+.tree-main {
+    flex: 1; display: flex; flex-direction: column; justify-content: space-around;
+    align-items: center; position: relative; padding: 20px 0; z-index: 2;
+}
+
+.t-row { display: flex; gap: 40px; width: 100%; justify-content: center; position: relative; }
+
+/* Nodes */
+.t-node {
+    background: rgba(0,0,0,0.4);
+    border: 2px solid; border-radius: 12px;
+    padding: 16px 20px; text-align: center;
+    backdrop-filter: blur(8px);
+    width: 320px; /* fixed width for uniformity */
+    z-index: 5;
+    position: relative;
+    box-sizing: border-box;
+}
+.t-node.cyan { border-color: #0ea5e9; box-shadow: 0 0 20px rgba(14,165,233,0.3), inset 0 0 15px rgba(14,165,233,0.1); }
+.t-node.purple { border-color: #8b5cf6; box-shadow: 0 0 20px rgba(139,92,246,0.3), inset 0 0 15px rgba(139,92,246,0.1); }
+.t-node.green { border-color: #10b981; box-shadow: 0 0 20px rgba(16,185,129,0.3), inset 0 0 15px rgba(16,185,129,0.1); }
+.t-node.orange { border-color: #f59e0b; box-shadow: 0 0 20px rgba(245,158,11,0.3), inset 0 0 15px rgba(245,158,11,0.1); }
+.t-node.gray { border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.05); }
+.t-node.red { border-color: #ef4444; background: rgba(239,68,68,0.1); box-shadow: 0 0 20px rgba(239,68,68,0.3); }
+
+.t-title { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 6px; display: flex; align-items: center; justify-content: center; gap: 10px;}
+.t-sub { font-size: 14px; color: #bad0e8; font-weight: 400; line-height: 1.4; opacity: 0.9;}
+
+/* SVG Lines */
+.tree-svg {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 1; pointer-events: none;
+}
+
+.retrain-text {
+    position: absolute; right: -50px; top: 340px;
+    color: #f59e0b; font-size: 14px; font-weight: 700; width: 100px; line-height: 1.4;
+}
+
+.verdict-box {
+    position: absolute; bottom: 30px; right: 80px;
+    width: 250px;
+}
+</style>
+</head>
+<body>
+<div class="slide">
+  <div class="s-eyebrow">03 · SYSTEM ARCHITECTURE</div>
+  <div class="s-title text-main-title">Kiến trúc tổng thể</div>
+  <div class="s-sub text-sub-title">Sơ đồ cây: Request → WAF → Gateway → AI Pipeline → Storage</div>
+
+  <div class="tree-container">
+    <div class="tree-legend">
+        <div style="color: #0ea5e9">CLIENT</div>
+        <div style="color: #8b5cf6">SECURITY</div>
+        <div style="color: #0ea5e9">GATEWAY</div>
+        <div style="color: #10b981">AI LAYER</div>
+        <div style="color: #0ea5e9">XAI</div>
+        <div style="color: #94a3b8">STORAGE</div>
+    </div>
+
+    <!-- Overlay SVG for Lines -->
+    <svg class="tree-svg">
+       <defs>
+         <marker id="arrow-cyan" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#0ea5e9"/></marker>
+         <marker id="arrow-purple" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#8b5cf6"/></marker>
+         <marker id="arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981"/></marker>
+         <marker id="arrow-orange" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#f59e0b"/></marker>
+         <marker id="arrow-gray" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(255,255,255,0.4)"/></marker>
+         <marker id="arrow-red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#ef4444"/></marker>
+       </defs>
+       
+       <!-- Coordinates assuming tree-main starts at x=140. Center is 140 + (1460-140)/2 = 800 -->
+       <!-- 1. Client to Security -->
+       <line x1="800" y1="85" x2="800" y2="135" stroke="#0ea5e9" stroke-width="2" marker-end="url(#arrow-cyan)"/>
+       
+       <!-- 2. Security to Gateway -->
+       <line x1="800" y1="205" x2="800" y2="255" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrow-purple)"/>
+       
+       <!-- 3. Gateway to AI Layer -->
+       <!-- Middle -->
+       <line x1="800" y1="325" x2="800" y2="375" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrow-purple)"/>
+       <!-- Left -->
+       <path d="M 770 325 L 430 350 L 430 375" fill="none" stroke="#10b981" stroke-width="2" marker-end="url(#arrow-green)"/>
+       <!-- Right -->
+       <path d="M 830 325 L 1170 350 L 1170 375" fill="none" stroke="#f59e0b" stroke-width="2" marker-end="url(#arrow-orange)"/>
+       
+       <!-- 4. DistilBERT to XAI (Middle) -->
+       <line x1="800" y1="445" x2="800" y2="505" stroke="#0ea5e9" stroke-width="2" stroke-dasharray="0" marker-end="url(#arrow-cyan)"/>
+       
+       <!-- FastText to TTLCache (Left AI to Middle Storage) -->
+       <path d="M 430 445 C 430 480, 770 480, 770 635" fill="none" stroke="#10b981" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow-green)"/>
+       
+       <!-- XAI to Storage -->
+       <!-- To SQLite (Left) -->
+       <path d="M 750 575 L 430 605 L 430 635" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2" stroke-dasharray="4,4" marker-end="url(#arrow-gray)"/>
+       <!-- To TTLCache (Middle) -->
+       <line x1="800" y1="575" x2="800" y2="635" stroke="rgba(255,255,255,0.3)" stroke-width="2" stroke-dasharray="4,4" marker-end="url(#arrow-gray)"/>
+       
+       <!-- Admin Dash to Model Store -->
+       <line x1="1170" y1="445" x2="1170" y2="635" stroke="#f59e0b" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow-orange)"/>
+       
+       <!-- Retrain Hot-reload Arrow (Right side) -->
+       <!-- From Right AI (Admin Dash) up to Right Gateway -->
+       <path d="M 1330 410 C 1400 410, 1400 290, 1170 290" fill="none" stroke="#f59e0b" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow-orange)"/>
+       
+       <!-- Model Store to VERDICT OUTPUT -->
+       <path d="M 1170 705 L 1290 735" fill="none" stroke="#ef4444" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow-red)"/>
+    </svg>
+
+    <div class="tree-main">
+        <!-- 1 Client -->
+        <div class="t-row">
+            <div class="t-node cyan" style="width:360px">
+                <div class="t-title">INCOMING REQUEST</div>
+                <div class="t-sub">Browser Extension · Chrome MV3 · Content Script</div>
+            </div>
+        </div>
+        <!-- 2 Security -->
+        <div class="t-row">
+            <div class="t-node purple" style="width:360px">
+                <div class="t-title"><span style="color:#d946ef">⬡</span> OWASP WAF</div>
+                <div class="t-sub">CRS v4.0 · SQLi / XSS Block · Header Inspection</div>
+            </div>
+        </div>
+        <!-- 3 Gateway -->
+        <div class="t-row">
+            <div class="t-node cyan" style="width:420px">
+                <div class="t-title"><span style="color:#f59e0b">⚡</span> Gateway Orchestrator · FastAPI :8000</div>
+                <div class="t-sub">Rate Limit · Token Bucket · 60 req/min · Route & Aggregate</div>
+            </div>
+        </div>
+        <div class="retrain-text">RETRAIN<br><span style="font-size: 11px">HOT-RELOAD</span></div>
+        <!-- 4 AI Layer -->
+        <div class="t-row" style="gap: 30px;">
+            <div class="t-node green">
+                <div class="t-title"><span style="color:#f59e0b">⚡</span> FastText Heuristic · :5001</div>
+                <div class="t-sub">N-gram 3-8 · OOV-robust · 0.03ms latency · 98.5% acc</div>
+            </div>
+            <div class="t-node purple">
+                <div class="t-title"><span style="color:#f472b6">🧠</span> DistilBERT Transformer · :5002</div>
+                <div class="t-sub">Self-Attention · GPU T4 · Seq 512 · Batch 16 · LR 1e-5</div>
+            </div>
+            <div class="t-node orange">
+                <div class="t-title"><span style="color:#a78bfa">👤</span> Admin Dashboard · HITL</div>
+                <div class="t-sub">React · Zustand · SIEM view · JWT Auth · Review queue</div>
+            </div>
+        </div>
+        <!-- 5 XAI Layer -->
+        <div class="t-row">
+            <div class="t-node cyan" style="width: 440px;">
+                <div class="t-title"><span style="color:#38bdf8">🔍</span> LIME XAI · Explainability</div>
+                <div class="t-sub">Feature Importance · Highlight manipulation keywords · Confidence score</div>
+            </div>
+        </div>
+        <!-- 6 Storage Layer -->
+        <div class="t-row" style="gap: 30px;">
+            <div class="t-node gray">
+                <div class="t-title">🗄️ SQLite / SQLAlchemy</div>
+                <div class="t-sub">Scan Logs · HITL queue · Labeled data</div>
+            </div>
+            <div class="t-node gray">
+                <div class="t-title"><span style="color:#f59e0b">⚡</span> TTLCache (In-Memory)</div>
+                <div class="t-sub">High-speed · ~18MB RAM · Auto-expire</div>
+            </div>
+            <div class="t-node green">
+                <div class="t-title"><span style="color:#d97706">📦</span> Model Store</div>
+                <div class="t-sub">Versioned weights · Hot-reload endpoint</div>
+            </div>
+        </div>
+        
+        <div class="t-node red verdict-box">
+            <div class="t-title" style="color: #ef4444; font-size: 16px;"><span style="color:#ef4444">🚨</span> VERDICT OUTPUT</div>
+            <div class="t-sub" style="font-size: 12px;">ALLOW - BLOCK - REVIEW</div>
+        </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,102 @@
+<!-- ═══════════════════════════════════════
+     S4 · KIẾN TRÚC HỆ THỐNG
+═══════════════════════════════════════ -->
+<div class="slide accent-cyan" id="s4" data-baton="🏗️">
+  <div class="s-eyebrow"><span></span>03 · System Architecture</div>
+  <div class="s-title text-main-title">Kiến trúc tổng thể</div>
+  <div class="s-sub text-sub-title">4 cụm: Client → Gateway → AI Pipeline → Storage</div>
+
+  <div class="arch fade-in" style="flex:1">
+    <!-- CLIENT -->
+    <div class="arch-col">
+      <div class="arch-col-header" style="background:rgba(14,165,233,.12);color:var(--cyan2)">Client Layer</div>
+      <div class="arch-node" style="border-color:rgba(14,165,233,.2)">
+        <div class="arch-node-icon">🌐</div>
+        <div class="arch-node-name">Browser Extension</div>
+        <div class="arch-node-desc">Chrome MV3 · Content script · Intercept requests</div>
+      </div>
+      <div class="arch-node" style="border-color:rgba(14,165,233,.2)">
+        <div class="arch-node-icon">📊</div>
+        <div class="arch-node-name">React Admin Dashboard</div>
+        <div class="arch-node-desc">Zustand · SIEM view · HITL queue · JWT Auth</div>
+      </div>
+      <div class="arch-node" style="border-color:rgba(14,165,233,.15)">
+        <div class="arch-node-icon">🔐</div>
+        <div class="arch-node-name">Auth Layer</div>
+        <div class="arch-node-desc">bcrypt · JWT · HTTPS</div>
+      </div>
+    </div>
+
+    <div class="arch-arrow">›</div>
+
+    <!-- GATEWAY -->
+    <div class="arch-col">
+      <div class="arch-col-header" style="background:rgba(124,58,237,.15);color:var(--purple2)">Gateway Layer</div>
+      <div class="arch-node" style="border-color:rgba(124,58,237,.3)">
+        <div class="arch-node-icon">🛡</div>
+        <div class="arch-node-name">OWASP WAF</div>
+        <div class="arch-node-desc">CRS v4.0 · SQLi · XSS · Header inspection</div>
+      </div>
+      <div class="arch-node" style="border-color:rgba(124,58,237,.2)">
+        <div class="arch-node-icon">⚡</div>
+        <div class="arch-node-name">Gateway Orchestrator (FastAPI)</div>
+        <div class="arch-node-desc">Port 8000 · Route requests · Aggregate responses</div>
+      </div>
+      <div class="arch-node" style="border-color:rgba(217,119,6,.3)">
+        <div class="arch-node-icon">🗂</div>
+        <div class="arch-node-name">TTLCache + Rate Limit</div>
+        <div class="arch-node-desc">Token Bucket · 60 req/min · HTTP 429</div>
+      </div>
+    </div>
+
+    <div class="arch-arrow">›</div>
+
+    <!-- AI PIPELINE -->
+    <div class="arch-col">
+      <div class="arch-col-header" style="background:rgba(5,150,105,.12);color:var(--green2)">AI Pipeline</div>
+      <div class="arch-node" style="border-color:rgba(5,150,105,.35)">
+        <div class="arch-node-icon">⚡</div>
+        <div class="arch-node-name">AI Heuristic (FastText)</div>
+        <div class="arch-node-desc">Port 5001 · ms latency · High-speed scan</div>
+      </div>
+      <div class="arch-node" style="border-color:rgba(124,58,237,.4)">
+        <div class="arch-node-icon">🧠</div>
+        <div class="arch-node-name">Deep Learning (DistilBERT)</div>
+        <div class="arch-node-desc">Port 5002 · Transformer · Self-Attention · GPU T4</div>
+      </div>
+      <div class="arch-node" style="border-color:rgba(14,165,233,.25)">
+        <div class="arch-node-icon">🔍</div>
+        <div class="arch-node-name">LIME XAI</div>
+        <div class="arch-node-desc">Feature importance · Highlight manipulation</div>
+      </div>
+      <div class="arch-node" style="border-color:rgba(217,119,6,.25)">
+        <div class="arch-node-icon">👤</div>
+        <div class="arch-node-name">HITL Queue</div>
+        <div class="arch-node-desc">Admin review → Verified data → Retrain</div>
+      </div>
+    </div>
+
+    <div class="arch-arrow">›</div>
+
+    <!-- STORAGE -->
+    <div class="arch-col">
+      <div class="arch-col-header" style="background:rgba(14,165,233,.08);color:var(--muted)">Storage Layer</div>
+      <div class="arch-node">
+        <div class="arch-node-icon">🗄</div>
+        <div class="arch-node-name">SQLite (SQLAlchemy)</div>
+        <div class="arch-node-desc">Lưu Scan Logs · Hàng đợi kiểm duyệt</div>
+      </div>
+      <div class="arch-node">
+        <div class="arch-node-icon">⚡</div>
+        <div class="arch-node-name">TTLCache (In-Memory)</div>
+        <div class="arch-node-desc">Bộ nhớ đệm tốc độ cao · Tinh gọn</div>
+      </div>
+      <div class="arch-node" style="border-color:rgba(5,150,105,.2)">
+        <div class="arch-node-icon">📦</div>
+        <div class="arch-node-name">Model Store</div>
+        <div class="arch-node-desc">Versioned weights · Hot-reload endpoint</div>
+      </div>
+    </div>
+  </div>
+</div>
+

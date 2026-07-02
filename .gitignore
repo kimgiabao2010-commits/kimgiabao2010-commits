@@ -28,3 +28,7 @@ temp_owasp_crs/
 *.safetensors
 *.csv
 *.zip
+
+~$*.pptx
+
+*.pptx

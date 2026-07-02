@@ -47,7 +47,8 @@ Dưới đây là chi tiết các mốc commit chính trong kho lưu trữ Git c
 
 | Commit Hash | Ngày thực hiện | Tên Commit / Tính năng | Mô Tả Kỹ Thuật Chi Tiết |
 | :--- | :--- | :--- | :--- |
-| **`(latest)`** | 2026-06-15 | `chore: add confusion matrix scripts, update training data, sync DB` | Bổ sung `confusion_matrix.py` và `confusion_matrix_figure.png` để trực quan hóa hiệu năng mô hình. Cập nhật `fasttext_train.txt` với dữ liệu huấn luyện mới nhất. Đồng bộ `swg_shield.db`. |
+| **`(latest)`** | 2026-07-01 | `feat: build PPTX export pipeline, automated stop-motion support, slides refactoring` | Hoàn thiện công cụ xuất Slide HTML sang PowerPoint qua puppeteer và pptxgenjs. Tổ chức lại thư mục `/slides` để lưu trữ tập trung tài sản thuyết trình đồ án tốt nghiệp. |
+| **`b0e19d7`** | 2026-06-15 | `chore: add confusion matrix scripts, update training data, sync DB` | Bổ sung `confusion_matrix.py` và `confusion_matrix_figure.png` để trực quan hóa hiệu năng mô hình. Cập nhật `fasttext_train.txt` với dữ liệu huấn luyện mới nhất. Đồng bộ `swg_shield.db`. |
 | **`9955b58`** | 2026-06-08 | `docs: redesign PROJECT_STRUCTURE.md with ASCII art, flowchart and enterprise layout` | Tái thiết kế hoàn toàn `PROJECT_STRUCTURE.md` với sơ đồ ASCII art, flowchart kiến trúc hệ thống và bố cục trình bày chuẩn Enterprise cho báo cáo tốt nghiệp. |
 | **`ebd6cc9`** | 2026-06-08 | `docs: add PROJECT_STRUCTURE.md — full annotated directory tree for thesis report` | Khởi tạo tệp `PROJECT_STRUCTURE.md` mô tả toàn bộ cây thư mục dự án với chú thích chi tiết phục vụ báo cáo đồ án tốt nghiệp. |
 | **`bcd29f1`** | 2026-06-06 | `feat(security): upgrade full stack to HTTPS via local CA (mkcert) and secure admin login` | Nâng cấp toàn bộ hệ thống lên HTTPS thông qua chứng chỉ Local CA tự ký bằng `mkcert`. Bảo mật cổng đăng nhập Admin Dashboard. Tích hợp `localhost+1.pem` và `localhost+1-key.pem`. |
